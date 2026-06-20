@@ -465,6 +465,117 @@
     /* 모바일 최적화 (폰 우선) — 화면 폭 600px 이하에서만 적용     */
     /* PC(넓은 화면)는 위 기본 스타일 그대로 유지                  */
     /* ======================================================== */
+    /* ============================================================ */
+    /* UI 리뉴얼 1단계 — 모던 톤 토큰 + 상단(검색·필터) 재정비       */
+    /* ============================================================ */
+    :root {
+      --bg: #ffffff;
+      --surface: #f3f5f7;
+      --surface-2: #e9edf1;
+      --line: #e6e9ed;
+      --text: #16191d;
+      --text-2: #5a626c;
+      --text-3: #9aa1aa;
+      --accent: #1976d2;
+      --accent-weak: rgba(25, 118, 210, 0.12);
+      --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.05);
+      --shadow-md: 0 6px 24px rgba(16, 24, 40, 0.12);
+      --r-pill: 999px;
+      --r-card: 16px;
+    }
+    body, button, input, textarea, select {
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+        "Pretendard", "Malgun Gothic", "Noto Sans KR", "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* 상단 패널 — 더 깨끗하게 */
+    #filter-panel {
+      background: rgba(255, 255, 255, 0.98);
+      backdrop-filter: saturate(1.2) blur(6px);
+      -webkit-backdrop-filter: saturate(1.2) blur(6px);
+      box-shadow: 0 1px 0 var(--line), 0 4px 18px rgba(16, 24, 40, 0.06);
+      padding: 0 0 7px;
+    }
+
+    /* 검색창 (네이버 지도풍) */
+    #search-wrap { position: relative; padding: 10px 12px 6px; }
+    #search-box {
+      display: flex; align-items: center; gap: 9px;
+      height: 46px; padding: 0 8px 0 14px;
+      background: var(--surface);
+      border: 1.5px solid transparent;
+      border-radius: var(--r-pill);
+      transition: background .15s, border-color .15s, box-shadow .15s;
+    }
+    #search-box:focus-within {
+      background: #fff; border-color: var(--accent);
+      box-shadow: 0 0 0 4px var(--accent-weak);
+    }
+    #search-icon { font-size: 16px; line-height: 1; opacity: .6; flex: 0 0 auto; }
+    #search-input {
+      flex: 1 1 auto; min-width: 0; height: 100%;
+      border: none; background: transparent; outline: none;
+      font-size: 15px; color: var(--text);
+    }
+    #search-input::placeholder { color: var(--text-3); }
+    #search-input::-webkit-search-cancel-button { -webkit-appearance: none; }
+    #search-clear {
+      display: none; flex: 0 0 auto;
+      width: 28px; height: 28px; border: none; border-radius: 50%;
+      background: var(--surface-2); color: var(--text-2);
+      font-size: 17px; line-height: 1; cursor: pointer;
+      align-items: center; justify-content: center;
+    }
+    #search-clear.show { display: inline-flex; }
+
+    /* 검색 결과 드롭다운 */
+    #search-results {
+      position: absolute; left: 12px; right: 12px; top: 58px;
+      background: #fff; border-radius: var(--r-card);
+      box-shadow: var(--shadow-md); border: 1px solid var(--line);
+      max-height: 56vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      display: none; z-index: 8;
+    }
+    #search-results.open { display: block; }
+    .sr-section-label {
+      padding: 10px 14px 4px; font-size: 11px; font-weight: 700;
+      color: var(--text-3); letter-spacing: .02em;
+    }
+    .sr-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 14px; cursor: pointer;
+      border-top: 1px solid var(--line);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .sr-section-label + .sr-row { border-top: none; }
+    .sr-row:active { background: var(--surface); }
+    .sr-dot {
+      width: 11px; height: 11px; border-radius: 50%; flex: 0 0 auto;
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.04);
+    }
+    .sr-tag {
+      flex: 0 0 auto; width: 26px; height: 26px; border-radius: 8px;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--accent-weak); color: var(--accent);
+      font-size: 14px; font-weight: 800;
+    }
+    .sr-name { font-size: 14px; font-weight: 600; color: var(--text); }
+    .sr-sub { font-size: 12px; color: var(--text-3); }
+    .sr-count { margin-left: auto; font-size: 12px; color: var(--text-3); font-weight: 600; }
+    .sr-empty { padding: 18px 14px; font-size: 13px; color: var(--text-3); text-align: center; }
+
+    /* 필터 칩 — 외형만 모던하게 (크기·구조는 기존/모바일 규칙 유지) */
+    .filter-btn {
+      border: 1px solid var(--line);
+      border-radius: var(--r-pill);
+      color: var(--text-2);
+      font-weight: 600;
+      transition: background .12s, border-color .12s, color .12s, transform .08s;
+    }
+    .filter-btn.active { box-shadow: 0 2px 8px var(--accent-weak); }
+    .filter-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
     @media (max-width: 600px) {
       /* 상단 필터 패널: 더 얇게 */
       #filter-panel { padding: 6px 0 4px; }
@@ -533,12 +644,27 @@
       .iw-action-btn { padding: 8px 6px; font-size: 12px; }
       .iw-course-chip { font-size: 11px; padding: 3px 8px; }
       .sdgs-label-tag { font-size: 11.5px; padding: 3px 8px; }
+
+      /* 검색창 */
+      #search-wrap { padding: 8px 10px 5px; }
+      #search-box { height: 42px; }
+      #search-input { font-size: 14px; }
+      #search-results { left: 10px; right: 10px; top: 52px; }
     }
   </style>
 </head>
 <body>
   <!-- STEP 3: 카테고리·태그 필터 (AND 조건으로 마커 표시/숨김) -->
   <div id="filter-panel">
+    <div id="search-wrap">
+      <div id="search-box">
+        <span id="search-icon" aria-hidden="true">🔍</span>
+        <input id="search-input" type="search" autocomplete="off" enterkeyhint="search"
+               placeholder="가게나 태그 검색 (예: 성심당, 데이트)" aria-label="가게·태그 검색" />
+        <button type="button" id="search-clear" aria-label="검색어 지우기">×</button>
+      </div>
+      <div id="search-results" role="listbox"></div>
+    </div>
     <div class="filter-row" id="category-row" aria-label="카테고리 필터">
       <button type="button" class="filter-btn active" data-category="">전체</button>
       <button type="button" class="filter-btn" data-category="food">🍚 식당</button>
@@ -1973,6 +2099,7 @@
       });
 
       initPhase3Events(); // 체크인/리뷰 이벤트 연결
+      initSearch(); // 검색창 (가게 이름 + 태그)
     }
 
     // ============================================================
@@ -2278,6 +2405,133 @@
       }
       document.getElementById("review-pos").addEventListener("click", chipHandler);
       document.getElementById("review-con").addEventListener("click", chipHandler);
+    }
+
+    // ============================================================
+    // UI 리뉴얼 1단계 — 검색 (가게 이름 + 태그)
+    // ============================================================
+    var SEARCH_TAGS = [];
+    var SEARCH_CAT_LABEL = { food: "식당", cafe: "카페", sight: "볼거리", culture: "문화공연", shop: "쇼핑" };
+
+    function syncFilterButtons() {
+      var c = document.querySelectorAll("#category-row .filter-btn");
+      for (var i = 0; i < c.length; i++)
+        c[i].classList.toggle("active", (c[i].getAttribute("data-category") || "") === activeCategory);
+      var t = document.querySelectorAll("#tag-row .filter-btn");
+      for (var j = 0; j < t.length; j++)
+        t[j].classList.toggle("active", t[j].getAttribute("data-tag") === activeTag && activeTag !== "");
+    }
+
+    // 검색에서 태그 선택 → 해당 태그 마커만 표시
+    function selectTagFromSearch(tag) {
+      if (activeCourseId) clearCourseHighlight();
+      activeCategory = "";
+      activeTag = tag;
+      syncFilterButtons();
+      applyFilters();
+      var cnt = 0;
+      for (var i = 0; i < spots.length; i++)
+        if (spots[i].tags && spots[i].tags.indexOf(tag) !== -1) cnt++;
+      showToast("#" + tag + " · " + cnt + "곳 표시", null, 2200);
+    }
+
+    // 검색에서 가게 선택 → 지도 이동 + 말풍선 열기
+    function openSpotFromSearch(spotId) {
+      var spot = spotById[spotId];
+      if (!spot || !mapInstance) return;
+      if (activeCourseId) clearCourseHighlight();
+      activeCategory = ""; activeTag = "";
+      syncFilterButtons();
+      applyFilters(); // 필터로 숨겨졌던 경우에도 보이게
+      var entry = markerEntryById[spotId];
+      var ll = new kakao.maps.LatLng(spot.lat, spot.lng);
+      mapInstance.setLevel(3);
+      mapInstance.panTo(ll);
+      closeOpenInfowindow();
+      if (entry) {
+        entry.infowindow.open(mapInstance, entry.marker);
+        openInfoEntry = { infowindow: entry.infowindow, marker: entry.marker };
+      }
+    }
+
+    function initSearch() {
+      var input = document.getElementById("search-input");
+      var clearBtn = document.getElementById("search-clear");
+      var box = document.getElementById("search-results");
+      if (!input) return;
+
+      SEARCH_TAGS = [];
+      var tagBtns = document.querySelectorAll("#tag-row .filter-btn");
+      for (var i = 0; i < tagBtns.length; i++) {
+        var tg = tagBtns[i].getAttribute("data-tag");
+        if (tg) SEARCH_TAGS.push(tg);
+      }
+
+      function esc(s) {
+        return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      }
+
+      function render() {
+        var q = input.value.trim().toLowerCase();
+        if (!q) { box.classList.remove("open"); box.innerHTML = ""; clearBtn.classList.remove("show"); return; }
+        clearBtn.classList.add("show");
+        var html = "";
+
+        // 태그 매치
+        var tagHits = [];
+        for (var i = 0; i < SEARCH_TAGS.length; i++)
+          if (SEARCH_TAGS[i].toLowerCase().indexOf(q) !== -1) tagHits.push(SEARCH_TAGS[i]);
+        if (tagHits.length) {
+          html += '<div class="sr-section-label">태그</div>';
+          for (var t = 0; t < tagHits.length; t++) {
+            var tag = tagHits[t], cnt = 0;
+            for (var s = 0; s < spots.length; s++)
+              if (spots[s].tags && spots[s].tags.indexOf(tag) !== -1) cnt++;
+            html += '<div class="sr-row" data-type="tag" data-tag="' + esc(tag) + '">' +
+              '<span class="sr-tag">#</span><span class="sr-name">' + esc(tag) + '</span>' +
+              '<span class="sr-count">' + cnt + '곳</span></div>';
+          }
+        }
+
+        // 가게 이름 매치 (주차장 제외, 최대 8개)
+        var spotHits = [];
+        for (var k = 0; k < spots.length && spotHits.length < 8; k++) {
+          var sp = spots[k];
+          if (sp.category === "parking") continue;
+          if (sp.name.toLowerCase().indexOf(q) !== -1) spotHits.push(sp);
+        }
+        if (spotHits.length) {
+          html += '<div class="sr-section-label">장소</div>';
+          for (var n = 0; n < spotHits.length; n++) {
+            var spot = spotHits[n];
+            var color = CATEGORY_COLORS[spot.category] || "#9aa1aa";
+            html += '<div class="sr-row" data-type="spot" data-id="' + esc(spot.id) + '">' +
+              '<span class="sr-dot" style="background:' + color + ';"></span>' +
+              '<span><span class="sr-name">' + esc(spot.name) + '</span> ' +
+              '<span class="sr-sub">' + (SEARCH_CAT_LABEL[spot.category] || "") + '</span></span></div>';
+          }
+        }
+
+        if (!html) html = '<div class="sr-empty">‘' + esc(input.value) + '’ 검색 결과가 없어요</div>';
+        box.innerHTML = html;
+        box.classList.add("open");
+      }
+
+      input.addEventListener("input", render);
+      input.addEventListener("focus", function () { if (input.value.trim()) render(); });
+      clearBtn.addEventListener("click", function () { input.value = ""; render(); input.focus(); });
+      box.addEventListener("click", function (e) {
+        var row = e.target.closest(".sr-row");
+        if (!row) return;
+        if (row.getAttribute("data-type") === "tag") selectTagFromSearch(row.getAttribute("data-tag"));
+        else openSpotFromSearch(row.getAttribute("data-id"));
+        box.classList.remove("open");
+        input.blur();
+      });
+      document.addEventListener("click", function (e) {
+        if (!e.target.closest("#search-wrap")) box.classList.remove("open");
+      });
     }
 
     function loadKakaoMap() {

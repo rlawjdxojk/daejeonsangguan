@@ -460,6 +460,80 @@
       -webkit-tap-highlight-color: transparent;
     }
     .course-demo-complete:active { background: #ead4ef; }
+
+    /* ======================================================== */
+    /* 모바일 최적화 (폰 우선) — 화면 폭 600px 이하에서만 적용     */
+    /* PC(넓은 화면)는 위 기본 스타일 그대로 유지                  */
+    /* ======================================================== */
+    @media (max-width: 600px) {
+      /* 상단 필터 패널: 더 얇게 */
+      #filter-panel { padding: 6px 0 4px; }
+      .filter-row { gap: 6px; padding: 3px 10px 5px; }
+      .filter-btn {
+        min-height: 34px;
+        padding: 6px 12px;
+        font-size: 13px;
+        border-width: 1px;
+        border-radius: 17px;
+      }
+
+      /* 우측 하단 여행 버튼 (근처 숙소·주차장·병원) */
+      #travel-float { right: 9px; gap: 6px; bottom: max(12px, env(safe-area-inset-bottom, 0px)); }
+      .travel-float-btn {
+        min-height: 32px;
+        padding: 6px 10px;
+        font-size: 11.5px;
+        gap: 3px;
+        border-radius: 9px;
+      }
+
+      /* 좌측 하단 코스 보기 버튼 */
+      #course-fab {
+        left: 9px;
+        min-height: 38px;
+        padding: 8px 13px;
+        font-size: 13px;
+        border-radius: 11px;
+        bottom: max(12px, env(safe-area-inset-bottom, 0px));
+      }
+
+      /* 데모 배지 */
+      #demo-badge { top: 8px; right: 9px; padding: 5px 9px; font-size: 10.5px; }
+
+      /* 코스 활성 배너 */
+      #course-active-bar { left: 9px; right: 9px; padding: 8px 11px; gap: 8px; }
+      .course-active-info .nm { font-size: 13px; }
+      .course-active-info .tl { font-size: 10.5px; }
+      .course-active-clear { padding: 7px 11px; font-size: 12px; }
+
+      /* 토스트 */
+      .toast { font-size: 13px; padding: 10px 13px; max-width: 92vw; }
+      .toast.badge { padding: 14px 16px; }
+      .toast.badge .t-title { font-size: 15px; }
+      .toast.badge .t-sub { font-size: 12px; }
+
+      /* 코스 목록 시트 / 카드 */
+      .course-sheet-head { padding: 14px 14px 10px; }
+      .course-sheet-head h2 { font-size: 16px; }
+      .course-sheet-head p { font-size: 11px; }
+      .course-card { padding: 12px; border-radius: 12px; }
+      .course-card-name { font-size: 15px; }
+      .course-card-tagline { font-size: 12.5px; }
+      .course-card-emoji { font-size: 20px; }
+
+      /* 라벨 / 리뷰 모달 */
+      .label-modal-card, .review-card { padding: 20px 17px 17px; }
+      .label-modal-name { font-size: 18px; }
+      .label-modal-desc { font-size: 13.5px; }
+      .review-title { font-size: 16px; }
+      .review-chip { font-size: 12.5px; padding: 6px 11px; }
+      .review-submit { padding: 12px; font-size: 14px; }
+
+      /* 인포윈도우(말풍선) 안 버튼·칩 */
+      .iw-action-btn { padding: 8px 6px; font-size: 12px; }
+      .iw-course-chip { font-size: 11px; padding: 3px 8px; }
+      .sdgs-label-tag { font-size: 11.5px; padding: 3px 8px; }
+    }
   </style>
 </head>
 <body>

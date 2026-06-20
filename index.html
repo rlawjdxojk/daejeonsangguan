@@ -1,0 +1,2273 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>대전 상권 추천 - 지도</title>
+  <meta name="theme-color" content="#1976d2" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-180.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="대전 한 바퀴" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; }
+    #map { width: 100%; height: 100vh; }
+
+    /* 지도 위쪽 필터 패널 (망고플레이트 스타일) */
+    #filter-panel {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 5;
+      background: rgba(255, 255, 255, 0.97);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+      padding: 10px 0 8px;
+      pointer-events: auto;
+    }
+    .filter-row {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 8px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 4px 12px 8px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .filter-row::-webkit-scrollbar { display: none; }
+    .filter-row:last-child { padding-bottom: 4px; }
+
+    .filter-btn {
+      flex: 0 0 auto;
+      min-height: 44px;
+      padding: 10px 16px;
+      border: 1.5px solid #ddd;
+      border-radius: 22px;
+      background: #fff;
+      color: #333;
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 1.2;
+      white-space: nowrap;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .filter-btn:active { transform: scale(0.97); }
+    /* 선택된 버튼 (활성) */
+    .filter-btn.active {
+      background: #1976d2;
+      border-color: #1976d2;
+      color: #fff;
+    }
+    /* 카테고리 버튼이 활성일 때 카테고리 색으로 강조 (선택) */
+    .filter-btn.active[data-category="food"] { background: #FF9800; border-color: #FF9800; }
+    .filter-btn.active[data-category="cafe"] { background: #795548; border-color: #795548; }
+    .filter-btn.active[data-category="sight"] { background: #4CAF50; border-color: #4CAF50; }
+    .filter-btn.active[data-category="culture"] { background: #9C27B0; border-color: #9C27B0; }
+    .filter-btn.active[data-category="shop"] { background: #E91E63; border-color: #E91E63; }
+    /* 주차장 표시 토글 (카테고리 필터와 별도) */
+    .filter-btn.parking-toggle.active {
+      background: #2196F3;
+      border-color: #2196F3;
+      color: #fff;
+    }
+
+    /* STEP 6: 여행 정보 빠른 링크 (카카오맵 검색, 데이터는 앱에 없음) */
+    #travel-float {
+      position: fixed;
+      right: 12px;
+      bottom: max(16px, env(safe-area-inset-bottom, 0px));
+      z-index: 4;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .travel-float-btn {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      min-height: 40px;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.96);
+      color: #222;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.2;
+      text-decoration: none;
+      white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .travel-float-btn:active {
+      transform: scale(0.96);
+      background: #f5f5f5;
+    }
+
+    #help {
+      display: none;
+      position: fixed;
+      inset: 0;
+      padding: 20px;
+      background: #fff;
+      color: #222;
+      font-size: 15px;
+      line-height: 1.7;
+      overflow: auto;
+      z-index: 10;
+    }
+    #help code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; }
+
+    /* ======================================================== */
+    /* Phase 2 — 코스 / SDGs 라벨 UI                            */
+    /* ======================================================== */
+
+    /* 코스 보기 버튼 (좌하단, travel-float와 대칭) */
+    #course-fab {
+      position: fixed;
+      left: 12px;
+      bottom: max(16px, env(safe-area-inset-bottom, 0px));
+      z-index: 4;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 44px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 12px;
+      background: #1976d2;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.2;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    #course-fab:active { transform: scale(0.97); }
+
+    /* 코스 목록 패널 (하단 시트) */
+    #course-panel {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: none;
+      background: rgba(0, 0, 0, 0.35);
+    }
+    #course-panel.open { display: block; }
+    .course-sheet {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      max-height: 88vh;
+      background: #f7f7f8;
+      border-radius: 16px 16px 0 0;
+      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .course-sheet-head {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 16px 12px;
+      background: #fff;
+      border-bottom: 1px solid #eee;
+    }
+    .course-sheet-head h2 { margin: 0; font-size: 18px; color: #222; }
+    .course-sheet-head p { margin: 3px 0 0; font-size: 12px; color: #888; line-height: 1.4; }
+    .course-sheet-close {
+      flex: 0 0 auto;
+      border: none; background: #f0f0f0; color: #444;
+      width: 34px; height: 34px; border-radius: 50%;
+      font-size: 20px; line-height: 1; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .course-sheet-body {
+      flex: 1 1 auto;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 8px 14px max(20px, env(safe-area-inset-bottom, 0px));
+    }
+    .course-section-label {
+      margin: 14px 4px 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #1976d2;
+    }
+    .course-section-label.extended { color: #777; }
+    .course-section-label .sub {
+      font-weight: 500; color: #aaa; font-size: 11px; margin-left: 6px;
+    }
+    .course-card {
+      background: #fff;
+      border: 1px solid #ececec;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .course-card:active { background: #fafafa; }
+    .course-card.extended { border-style: dashed; background: #fbfbfb; }
+    .course-card-top { display: flex; align-items: center; gap: 8px; }
+    .course-card-emoji { font-size: 22px; line-height: 1; }
+    .course-card-name { font-size: 16px; font-weight: 700; color: #222; }
+    .course-card-badge {
+      margin-left: auto; font-size: 11px; font-weight: 700;
+      color: #fff; background: #1976d2; padding: 2px 9px; border-radius: 10px;
+    }
+    .course-card.extended .course-card-badge { background: #9e9e9e; }
+    .course-card-tagline { margin: 7px 0 8px; font-size: 13px; color: #555; line-height: 1.5; }
+    .course-card-meta {
+      display: flex; flex-wrap: wrap; gap: 3px 12px;
+      font-size: 12px; color: #888; margin-bottom: 9px;
+    }
+    .course-card-meta b { color: #555; font-weight: 700; }
+    .course-card-note {
+      font-size: 12px; color: #9c6b00; background: #fff8e1;
+      border-radius: 8px; padding: 6px 9px; margin-bottom: 9px; line-height: 1.5;
+    }
+    .course-labels { display: flex; flex-wrap: wrap; gap: 6px; }
+    .sdgs-label-tag {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 12px; font-weight: 600; color: #2e7d32;
+      background: #e8f5e9; border: 1px solid #c8e6c9;
+      padding: 4px 9px; border-radius: 12px;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .sdgs-label-tag:active { background: #d7eed9; }
+    .course-card-cta { margin-top: 11px; font-size: 12px; font-weight: 700; color: #1976d2; }
+
+    /* 코스 활성 배너 (지도 강조 중) */
+    #course-active-bar {
+      position: fixed;
+      left: 12px; right: 12px;
+      bottom: max(16px, env(safe-area-inset-bottom, 0px));
+      z-index: 6;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: rgba(33, 33, 33, 0.94);
+      color: #fff;
+      border-radius: 12px;
+      box-shadow: 0 3px 14px rgba(0, 0, 0, 0.3);
+    }
+    #course-active-bar.open { display: flex; }
+    .course-active-info { flex: 1 1 auto; min-width: 0; }
+    .course-active-info .nm { font-size: 14px; font-weight: 700; }
+    .course-active-info .tl {
+      font-size: 11px; color: #cfcfcf; margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .course-active-clear {
+      flex: 0 0 auto; border: none; cursor: pointer;
+      background: #fff; color: #222; font-size: 13px; font-weight: 700;
+      padding: 8px 13px; border-radius: 9px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* 인포윈도우 안 코스 칩 (Task 1 · C안) */
+    .iw-course-wrap { margin-top: 9px; }
+    .iw-course-label { font-size: 11px; color: #999; margin-bottom: 5px; }
+    .iw-course-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .iw-course-chip {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 12px; font-weight: 600; color: #1565c0;
+      background: #e7f1fb; border: 1px solid #cfe2f7;
+      padding: 4px 9px; border-radius: 12px;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+
+    /* SDGs 라벨 모달 (Task 4) */
+    #label-modal {
+      position: fixed; inset: 0; z-index: 50; display: none;
+      align-items: center; justify-content: center;
+      background: rgba(0, 0, 0, 0.45); padding: 24px;
+    }
+    #label-modal.open { display: flex; }
+    .label-modal-card {
+      width: 100%; max-width: 360px;
+      background: #fff; border-radius: 16px;
+      padding: 24px 20px 20px; position: relative;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+    .label-modal-close {
+      position: absolute; top: 12px; right: 12px;
+      border: none; background: #f0f0f0; color: #444;
+      width: 30px; height: 30px; border-radius: 50%;
+      font-size: 18px; line-height: 1; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .label-modal-emoji { font-size: 34px; line-height: 1; }
+    .label-modal-name { font-size: 20px; font-weight: 800; color: #222; margin: 8px 0 6px; }
+    .label-modal-sdg {
+      display: inline-block; font-size: 12px; font-weight: 700;
+      color: #1565c0; background: #e7f1fb; padding: 3px 10px;
+      border-radius: 10px; margin-bottom: 13px;
+    }
+    .label-modal-desc { font-size: 14px; line-height: 1.7; color: #555; }
+
+    /* ======================================================== */
+    /* Phase 3 — 체크인 / 완주 뱃지 / 리뷰                       */
+    /* ======================================================== */
+
+    /* 토스트 알림 (체크인 결과·완주 뱃지) */
+    #toast-wrap {
+      position: fixed;
+      top: max(14px, env(safe-area-inset-top, 0px));
+      left: 0; right: 0;
+      z-index: 70;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+      padding: 0 14px;
+    }
+    .toast {
+      pointer-events: auto;
+      max-width: 440px;
+      width: fit-content;
+      background: rgba(33, 33, 33, 0.95);
+      color: #fff;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 14px;
+      line-height: 1.5;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      animation: toast-in 0.25s ease;
+    }
+    .toast.success { background: rgba(46, 125, 50, 0.96); }
+    .toast.error { background: rgba(198, 40, 40, 0.96); }
+    .toast.badge {
+      background: linear-gradient(135deg, #1565c0, #6a1b9a);
+      text-align: center;
+      padding: 16px 20px;
+    }
+    .toast.badge .t-title { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+    .toast.badge .t-sub { font-size: 13px; color: #e8e8ff; }
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .toast.leaving { opacity: 0; transform: translateY(-10px); transition: all 0.25s ease; }
+
+    /* 인포윈도우 안 체크인 / 리뷰 액션 */
+    .iw-actions { display: flex; gap: 6px; margin-top: 9px; }
+    .iw-action-btn {
+      flex: 1 1 0;
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+      padding: 9px 8px; border: 1px solid #dadada; border-radius: 9px;
+      background: #fff; color: #333; font-size: 13px; font-weight: 600;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .iw-action-btn:active { background: #f3f3f3; }
+    .iw-action-btn.done { background: #e8f5e9; border-color: #c8e6c9; color: #2e7d32; }
+    .iw-status { margin-top: 7px; font-size: 12px; color: #777; }
+    .iw-status .ok { color: #2e7d32; font-weight: 600; }
+
+    /* 코스 카드 진행률 / 완주 뱃지 */
+    .course-progress {
+      display: flex; align-items: center; gap: 8px;
+      margin: 2px 0 9px; font-size: 12px; color: #777;
+    }
+    .course-progress-bar {
+      flex: 1 1 auto; height: 6px; border-radius: 3px;
+      background: #ececec; overflow: hidden;
+    }
+    .course-progress-fill { height: 100%; background: #1976d2; border-radius: 3px; transition: width 0.3s; }
+    .course-progress.done .course-progress-fill { background: #2e7d32; }
+    .course-progress-num { flex: 0 0 auto; font-weight: 700; color: #555; }
+    .course-done-badge {
+      display: inline-block; margin-left: 6px;
+      font-size: 11px; font-weight: 800; color: #fff; background: #2e7d32;
+      padding: 2px 9px; border-radius: 10px;
+    }
+
+    /* 리뷰 모달 */
+    #review-modal {
+      position: fixed; inset: 0; z-index: 50; display: none;
+      align-items: center; justify-content: center;
+      background: rgba(0, 0, 0, 0.45); padding: 24px;
+    }
+    #review-modal.open { display: flex; }
+    .review-card {
+      width: 100%; max-width: 380px; max-height: 84vh; overflow-y: auto;
+      background: #fff; border-radius: 16px;
+      padding: 22px 20px 20px; position: relative;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+    .review-close {
+      position: absolute; top: 12px; right: 12px;
+      border: none; background: #f0f0f0; color: #444;
+      width: 30px; height: 30px; border-radius: 50%;
+      font-size: 18px; line-height: 1; cursor: pointer;
+    }
+    .review-title { font-size: 18px; font-weight: 800; color: #222; margin: 0 30px 4px 0; }
+    .review-sub { font-size: 12px; color: #999; margin-bottom: 16px; }
+    .review-group-label { font-size: 13px; font-weight: 700; margin: 14px 0 8px; }
+    .review-group-label.pos { color: #2e7d32; }
+    .review-group-label.con { color: #ef6c00; }
+    .review-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+    .review-chip {
+      font-size: 13px; font-weight: 600; padding: 7px 12px;
+      border-radius: 14px; cursor: pointer; user-select: none;
+      border: 1.5px solid #ddd; background: #fff; color: #555;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .review-chip .cnt { color: #aaa; font-weight: 700; margin-left: 3px; }
+    .review-chip.pos.on { background: #e8f5e9; border-color: #66bb6a; color: #2e7d32; }
+    .review-chip.con.on { background: #fff3e0; border-color: #ffa726; color: #ef6c00; }
+    .review-submit {
+      width: 100%; margin-top: 20px; padding: 13px;
+      border: none; border-radius: 11px; background: #1976d2; color: #fff;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+    .review-submit:active { background: #155fa0; }
+    .review-submit:disabled { background: #c5c5c5; cursor: default; }
+
+    /* 데모 모드 배지 (?demo=1 일 때만) */
+    #demo-badge {
+      position: fixed; top: 10px; right: 12px; z-index: 7;
+      display: none; align-items: center; gap: 5px;
+      padding: 6px 12px; border-radius: 20px;
+      background: #6a1b9a; color: #fff;
+      font-size: 12px; font-weight: 800;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+      pointer-events: none;
+    }
+    #demo-badge.on { display: inline-flex; }
+    /* 코스 카드 "완주 체험" 버튼 (데모 전용) */
+    .course-demo-complete {
+      margin-top: 10px; display: inline-block;
+      font-size: 12px; font-weight: 700; color: #6a1b9a;
+      background: #f3e5f5; border: 1px solid #e1bee7;
+      padding: 8px 13px; border-radius: 9px; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .course-demo-complete:active { background: #ead4ef; }
+  </style>
+</head>
+<body>
+  <!-- STEP 3: 카테고리·태그 필터 (AND 조건으로 마커 표시/숨김) -->
+  <div id="filter-panel">
+    <div class="filter-row" id="category-row" aria-label="카테고리 필터">
+      <button type="button" class="filter-btn active" data-category="">전체</button>
+      <button type="button" class="filter-btn" data-category="food">🍚 식당</button>
+      <button type="button" class="filter-btn" data-category="cafe">☕ 카페</button>
+      <button type="button" class="filter-btn" data-category="sight">🏛 볼거리</button>
+      <button type="button" class="filter-btn" data-category="culture">🎭 문화공연</button>
+      <button type="button" class="filter-btn" data-category="shop">🛍 쇼핑</button>
+    </div>
+    <div class="filter-row" id="tag-row" aria-label="태그 필터">
+      <button type="button" class="filter-btn" data-tag="데이트">데이트</button>
+      <button type="button" class="filter-btn" data-tag="혼밥혼카페">혼밥혼카페</button>
+      <button type="button" class="filter-btn" data-tag="가족">가족</button>
+      <button type="button" class="filter-btn" data-tag="사진맛집">사진맛집</button>
+      <button type="button" class="filter-btn" data-tag="성심당근처">성심당근처</button>
+      <button type="button" class="filter-btn" data-tag="대기중방문">대기중방문</button>
+      <button type="button" class="filter-btn" data-tag="다음코스">다음코스</button>
+      <button type="button" class="filter-btn" data-tag="아이와함께">아이와함께</button>
+    </div>
+    <!-- STEP 5: 주차장은 spots와 분리, 카테고리/태그 필터와 무관하게 켜고 끔 -->
+    <div class="filter-row" id="parking-row" aria-label="주차장 표시">
+      <button type="button" class="filter-btn parking-toggle active" id="parking-toggle-btn">
+        🅿️ 주차장 표시
+      </button>
+    </div>
+  </div>
+
+  <div id="map"></div>
+
+  <!-- STEP 6: 카카오맵 검색으로 연결 (우리 앱은 데이터를 갖지 않음) -->
+  <nav id="travel-float" aria-label="여행 정보 바로가기">
+    <a
+      class="travel-float-btn"
+      href="https://map.kakao.com/?q=%EB%8C%80%EC%A0%84%20%ED%98%B8%ED%85%94"
+      target="_blank"
+      rel="noopener noreferrer"
+    >🏨 근처 숙소</a>
+    <a
+      class="travel-float-btn"
+      href="https://map.kakao.com/?q=%EB%8C%80%EC%A0%84%20%EC%A3%BC%EC%B0%A8%EC%9E%A5"
+      target="_blank"
+      rel="noopener noreferrer"
+    >🅿️ 주차장 전체</a>
+    <a
+      class="travel-float-btn"
+      href="https://map.kakao.com/?q=%EB%8C%80%EC%A0%84%2024%EC%8B%9C%20%EC%9D%91%EA%B8%89%EC%8B%A4"
+      target="_blank"
+      rel="noopener noreferrer"
+    >🏥 24시 병원</a>
+  </nav>
+
+  <!-- ===== Phase 3: 데모 모드 배지 (?demo=1) ===== -->
+  <div id="demo-badge">🎬 데모 모드 · 위치 없이 체크인</div>
+
+  <!-- ===== Phase 2: 코스 보기 버튼 (좌하단) ===== -->
+  <button type="button" id="course-fab" aria-label="추천 코스 보기">🗺️ 코스 보기</button>
+
+  <!-- ===== Phase 2: 코스 강조 중 배너 (지도 하단) ===== -->
+  <div id="course-active-bar" role="status">
+    <div class="course-active-info">
+      <div class="nm" id="course-active-name"></div>
+      <div class="tl" id="course-active-tagline"></div>
+    </div>
+    <button type="button" class="course-active-clear" id="course-active-clear">전체 보기</button>
+  </div>
+
+  <!-- ===== Phase 2: 코스 목록 패널 (하단 시트) ===== -->
+  <div id="course-panel" aria-hidden="true">
+    <div class="course-sheet" role="dialog" aria-label="추천 코스 목록">
+      <div class="course-sheet-head">
+        <div>
+          <h2>대전 추천 코스</h2>
+          <p>성심당에서 시작하는 동네 한 바퀴 · 라벨을 누르면 SDGs 설명이 나와요</p>
+        </div>
+        <button type="button" class="course-sheet-close" id="course-panel-close" aria-label="닫기">×</button>
+      </div>
+      <div class="course-sheet-body" id="course-list"></div>
+    </div>
+  </div>
+
+  <!-- ===== Phase 2: SDGs 라벨 설명 모달 ===== -->
+  <div id="label-modal" aria-hidden="true">
+    <div class="label-modal-card" role="dialog" aria-label="SDGs 라벨 설명">
+      <button type="button" class="label-modal-close" id="label-modal-close" aria-label="닫기">×</button>
+      <div class="label-modal-emoji" id="label-modal-emoji"></div>
+      <div class="label-modal-name" id="label-modal-name"></div>
+      <span class="label-modal-sdg" id="label-modal-sdg"></span>
+      <div class="label-modal-desc" id="label-modal-desc"></div>
+    </div>
+  </div>
+
+  <!-- ===== Phase 3: 토스트 알림 컨테이너 ===== -->
+  <div id="toast-wrap" aria-live="polite"></div>
+
+  <!-- ===== Phase 3: 리뷰 모달 ===== -->
+  <div id="review-modal" aria-hidden="true">
+    <div class="review-card" role="dialog" aria-label="리뷰 남기기">
+      <button type="button" class="review-close" id="review-close" aria-label="닫기">×</button>
+      <h3 class="review-title" id="review-title"></h3>
+      <p class="review-sub">별점 대신, 가게에 도움이 되는 라벨로 남겨요</p>
+      <div class="review-group-label pos">👍 좋았던 점</div>
+      <div class="review-chips" id="review-pos"></div>
+      <div class="review-group-label con">💡 아쉬운 점 · 가게에 전하는 제안</div>
+      <div class="review-chips" id="review-con"></div>
+      <button type="button" class="review-submit" id="review-submit">리뷰 등록</button>
+    </div>
+  </div>
+
+  <div id="help"></div>
+
+  <script>
+    // ★ 콘솔에서 복사한 JavaScript 키 (플랫폼 키 화면)
+    // 아래 값이 콘솔과 다르면 지도가 안 뜹니다.
+    var KAKAO_JS_KEY = "21f9a8ce0ecdf5f41765ec2f2d685624";
+
+    // ============================================================
+    // 추천 장소 목록 (spots) — 6주차 (19곳 + 주차장 1)
+    // category: food | cafe | sight | culture | shop | parking
+    // ============================================================
+    var spots = [
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 핵심 도보권 16곳 (성심당 일대)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+      // 1. 성심당 본점 (출발점·기준점)
+      {
+        id: "seongsimdang-main",
+        name: "성심당 본점",
+        category: "food",
+        tags: ["사진맛집", "성심당근처", "대기중방문", "다음코스"],
+        lat: 36.3276832,
+        lng: 127.4273424,
+        summary: "대전 원도심 대표 베이커리. 튀김소보로·부르스떼·튀소세트가 인기 메뉴.",
+        hours: "08:00 ~ 22:00",
+        district: "중구 은행동 (대종로480번길 15)"
+      },
+
+      // 2. 아신극장
+      {
+        id: "asin-theater",
+        name: "아신극장",
+        category: "culture",
+        tags: ["데이트", "다음코스"],
+        lat: 36.3256016,
+        lng: 127.4279525,
+        summary: "대흥동 소극장. 연극·뮤지컬 공연이 상시 열리는 대전 대학로 명소.",
+        hours: "공연 일정별 (홈페이지 확인)",
+        district: "중구 대흥동 (대종로 458)"
+      },
+
+      // 3. 대전근현대사전시관 (옛 충남도청)
+      {
+        id: "jung-gu-history-hall",
+        name: "대전근현대사전시관",
+        category: "culture",
+        tags: ["가족", "아이와함께", "다음코스", "사진맛집"],
+        lat: 36.3267462,
+        lng: 127.420376,
+        summary: "옛 충남도청 건물에 자리한 전시관. 근현대 대전의 흐름을 한눈에.",
+        hours: "10:00~19:00(하절) / 10:00~18:00(동절), 월요일 휴관",
+        district: "중구"
+      },
+
+      // 4. 꿈돌이 하우스
+      {
+        id: "kumdori-family-house",
+        name: "꿈돌이 하우스",
+        category: "culture",
+        tags: ["가족", "아이와함께", "사진맛집", "다음코스"],
+        lat: 36.3309736,
+        lng: 127.4315019,
+        summary: "1993 대전엑스포 마스코트 꿈돌이를 만나는 체험 공간. 가족 단위 추천.",
+        hours: "11:00 ~ 19:00, 월요일 휴무",
+        district: "동구 (중앙로203번길 3)"
+      },
+
+      // 5. 로크하우스
+      {
+        id: "lock-house",
+        name: "로크하우스",
+        category: "cafe",
+        tags: ["데이트", "혼밥혼카페", "성심당근처"],
+        lat: 36.330012,
+        lng: 127.4278565,
+        summary: "은행동 골목의 작은 술집·카페. 저녁 술자리 분위기가 좋은 곳.",
+        hours: "12:00 ~ 19:00 전후 (요일별 상이)",
+        district: "중구 은행동 (목척8길 10)"
+      },
+
+      // 6. 빽다방 은행동점
+      {
+        id: "paiks-coffee-eunhaeng",
+        name: "빽다방 은행동점",
+        category: "cafe",
+        tags: ["혼밥혼카페", "성심당근처", "대기중방문"],
+        lat: 36.3279143,
+        lng: 127.4273415,
+        summary: "성심당 바로 옆 빽다방. 대기 시간 활용에 좋은 가성비 카페.",
+        hours: "08:00 ~ 22:00 전후",
+        district: "중구 은행동 (대종로480번길 56)"
+      },
+
+      // 7. 카페 커닝
+      {
+        id: "cafe-learning",
+        name: "카페 커닝",
+        category: "cafe",
+        tags: ["데이트", "사진맛집", "성심당근처", "혼밥혼카페"],
+        lat: 36.3279519,
+        lng: 127.4245703,
+        summary: "은행동의 분위기 있는 카페. 디저트와 핸드드립이 강점.",
+        hours: "매장별 상이 (방문 전 확인)",
+        district: "중구"
+      },
+
+      // 8. 대추나무칼국수
+      {
+        id: "daechu-kalguksu",
+        name: "대추나무칼국수",
+        category: "food",
+        tags: ["가족", "혼밥혼카페", "성심당근처"],
+        lat: 36.3296751,
+        lng: 127.4263677,
+        summary: "성심당 근처 칼국수·두부두루치기. 한 끼 식사로 많이 찾는 곳.",
+        hours: "10:00 ~ 21:00 전후",
+        district: "중구 은행동 (목척9길 30)"
+      },
+
+      // 9. 도어블 (doAble) — 원도심 정찬 중식당
+      {
+        id: "doorable",
+        name: "도어블 (doAble)",
+        category: "food",
+        tags: ["데이트", "가족", "다음코스", "성심당근처"],
+        lat: 36.323552,
+        lng: 127.4252106,
+        summary: "원도심 정찬 중식당. 동파육·해물누룽지탕 등 시그니처 4~5만원대, 면류 단품 1만원대.",
+        hours: "방문 전 확인 권장",
+        district: "중구"
+      },
+
+      // 10. 소나무집
+      {
+        id: "sonamu-jib",
+        name: "소나무집",
+        category: "food",
+        tags: ["가족", "혼밥혼카페"],
+        lat: 36.3269665,
+        lng: 127.4304671,
+        summary: "대흥동 한식 노포. 가족 식사로 자주 찾는 곳.",
+        hours: "11:00 ~ 21:00 전후",
+        district: "중구 대흥동 (대종로460번길 26)"
+      },
+
+      // 11. 으능정이 문화의 거리
+      {
+        id: "euneungjeongi-street",
+        name: "으능정이 문화의 거리",
+        category: "sight",
+        tags: ["사진맛집", "데이트", "성심당근처", "다음코스"],
+        lat: 36.3283766,
+        lng: 127.4282393,
+        summary: "선화동 문화·카페·식당이 모인 원도심 대표 거리. 산책·야경 맛집.",
+        hours: "상점별 상이 (거리는 연중 자유 관람)",
+        district: "중구 선화동"
+      },
+
+      // 12. 원도심어울림길 벽화거리 (기존 좌표 유지 — 중구가 정확)
+      {
+        id: "mural-alley",
+        name: "원도심어울림길 벽화거리",
+        category: "sight",
+        tags: ["사진맛집", "데이트", "가족", "다음코스"],
+        lat: 36.325577,
+        lng: 127.421491,
+        summary: "원도심 골목을 잇는 약 2km의 도보 산책 코스. 벽화와 옛 골목의 매력.",
+        hours: "상시 (야간 조명 구간 있음)",
+        district: "중구 대흥동"
+      },
+
+      // 13. 도시여행자
+      {
+        id: "city-traveler-bookstore",
+        name: "도시여행자",
+        category: "shop",
+        tags: ["데이트", "다음코스", "사진맛집"],
+        lat: 36.3269715,
+        lng: 127.4276948,
+        summary: "원도심의 작은 책방·카페. 천천히 책 읽기 좋은 공간.",
+        hours: "매장별 상이 (방문 전 확인)",
+        district: "중구"
+      },
+
+      // 14. 대흥동성당
+      {
+        id: "daeheung-cathedral",
+        name: "대흥동성당",
+        category: "sight",
+        tags: ["사진맛집", "데이트", "다음코스"],
+        lat: 36.326795,
+        lng: 127.4264075,
+        summary: "원도심의 오래된 성당. 외관 산책과 사진 명소로 인기.",
+        hours: "예배 시간 외 내부 관람 제한 있을 수 있음 (외관 산책)",
+        district: "중구 대흥동"
+      },
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 신규 추가 — 도보권 노포 2곳
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+      // 15. 광천식당 (외지인 인기 맛집 5위 — 5주차 데이터 발견)
+      {
+        id: "gwangcheon-sikdang",
+        name: "광천식당",
+        category: "food",
+        tags: ["혼밥혼카페", "성심당근처", "다음코스"],
+        lat: 36.3284892,
+        lng: 127.4231327,
+        summary: "대전 노포 한식. 외지 관광객 맛집 검색 상위에 잡히는 검증된 한 끼.",
+        hours: "11:00 ~ 21:00 전후 (방문 전 확인)",
+        district: "중구"
+      },
+
+      // 16. 진로집 (외지인 인기 맛집 13위 — 5주차 데이터 발견)
+      {
+        id: "jinro-jip",
+        name: "진로집",
+        category: "food",
+        tags: ["혼밥혼카페", "성심당근처", "데이트"],
+        lat: 36.3258519,
+        lng: 127.4246713,
+        summary: "대전 노포 한식·주점. 저녁 한 끼와 술자리에 좋은 분위기.",
+        hours: "17:00 ~ 24:00 전후 (방문 전 확인)",
+        district: "중구"
+      },
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 확장 코스용 3곳 (대중교통/차 필요)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+      // 17. 사정공원 (현지인 인기 14위 — 외지인은 모름)
+      {
+        id: "sajeong-park",
+        name: "사정공원",
+        category: "sight",
+        tags: ["가족", "아이와함께", "다음코스"],
+        lat: 36.2996407,
+        lng: 127.4097128,
+        summary: "현지인이 즐겨 찾는 도심 속 공원. 산책·휴식으로 동네 사람들의 일상.",
+        hours: "24시간 (자유 관람)",
+        district: "중구 사정동"
+      },
+
+      // 18. 태평시장 (현지인 인기 16위 — 외지인은 모름)
+      {
+        id: "taepyeong-market",
+        name: "태평시장",
+        category: "shop",
+        tags: ["혼밥혼카페", "사진맛집", "다음코스"],
+        lat: 36.3259021,
+        lng: 127.3977009,
+        summary: "현지인이 가는 대전 전통시장. 동네 사람들의 진짜 일상 시장.",
+        hours: "상점별 상이 (낮 시간대 활기)",
+        district: "중구 태평동"
+      },
+
+      // 19. 한밭수목원 (서구 — 자연 코스 종착점)
+      {
+        id: "hanbat-arboretum",
+        name: "한밭수목원",
+        category: "sight",
+        tags: ["가족", "데이트", "아이와함께", "사진맛집"],
+        lat: 36.3688766,
+        lng: 127.389361,
+        summary: "대전 도심 속 대규모 수목원. 자연 코스의 종착점, 사계절 추천.",
+        hours: "06:00 ~ 일몰까지 (계절별 상이)",
+        district: "서구 만년동"
+      },
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 주차장 (공영) — spots에 포함, 마커는 parkingSpots로 별도 처리
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+      // 20. 공영주차장
+      {
+        id: "public-parking-main",
+        name: "공영주차장",
+        category: "parking",
+        tags: [],
+        lat: 36.3271409,
+        lng: 127.4282874,
+        summary: "원도심 공영주차장. 우천·도보 어려운 분 우선 권장.",
+        hours: "24시간",
+        district: "중구"
+      }
+    ];
+
+    // ===============================================================
+    // 코스 데이터 (6주차 신설)
+    // 옵션 1 구조: Course → Spots 참조
+    // ===============================================================
+
+    var courses = [
+      {
+        id: "walker-king",
+        name: "만보왕 코스",
+        emoji: "🚶",
+        tagline: "어울림길 따라 도는 성심당 한 바퀴",
+        spotIds: [
+          "seongsimdang-main",
+          "euneungjeongi-street",
+          "jung-gu-history-hall",
+          "daeheung-cathedral",
+          "mural-alley",
+          "city-traveler-bookstore",
+          "seongsimdang-main"
+        ],
+        distance: "약 1.9km",
+        time: "약 3시간",
+        steps: 9000,
+        carbonSaved: 0.4,
+        labels: ["health-walk", "old-town-keeper", "carbon-cut"],
+        type: "core"
+      },
+      {
+        id: "carbon-zero",
+        name: "탄소발자국 0g 코스",
+        emoji: "🌱",
+        tagline: "차 없이 가능한 원도심 한 바퀴",
+        spotIds: [
+          "seongsimdang-main",
+          "paiks-coffee-eunhaeng",
+          "euneungjeongi-street",
+          "asin-theater"
+        ],
+        distance: "약 3~4km",
+        time: "약 3시간",
+        steps: 5800,
+        carbonSaved: 1.2,
+        labels: ["public-transit", "carbon-cut"],
+        type: "core"
+      },
+      {
+        id: "foodie-king",
+        name: "먹보왕 코스",
+        emoji: "🍚",
+        tagline: "빵·국수·디저트·중식·노포까지 — 종일 식도락",
+        spotIds: [
+          "seongsimdang-main",
+          "daechu-kalguksu",
+          "cafe-learning",
+          "doorable",
+          "gwangcheon-sikdang"
+        ],
+        distance: "약 1.5km",
+        time: "6~8시간 (저녁 둘 중 선택)",
+        steps: 4500,
+        carbonSaved: 0.3,
+        labels: ["nopo-supporter", "small-shop-keeper"],
+        type: "core",
+        note: "저녁은 정찬(도어블) 또는 노포(광천식당) 중 선택"
+      },
+      {
+        id: "memory-walk",
+        name: "문방구 코스",
+        emoji: "🎨",
+        tagline: "옛 동네 골목, 천천히 추억 줍기",
+        spotIds: [
+          "mural-alley",
+          "doorable",
+          "city-traveler-bookstore",
+          "jung-gu-history-hall"
+        ],
+        distance: "약 1.5km",
+        time: "2~3시간",
+        steps: 4500,
+        carbonSaved: 0.4,
+        labels: ["old-stories", "old-town-keeper"],
+        type: "core"
+      },
+      {
+        id: "culture-art",
+        name: "문화·예술 코스",
+        emoji: "🎭",
+        tagline: "성심당 줄 30분, 그 시간을 다르게",
+        spotIds: [
+          "seongsimdang-main",
+          "asin-theater",
+          "daeheung-cathedral",
+          "seongsimdang-main"
+        ],
+        distance: "약 0.8km",
+        time: "1.5~2시간",
+        steps: 2500,
+        carbonSaved: 0.2,
+        labels: ["wait-art", "old-town-keeper"],
+        type: "core"
+      },
+      {
+        id: "family-fun",
+        name: "가족 코스",
+        emoji: "👨‍👩‍👧",
+        tagline: "아이와 반나절, 무리 없는 코스",
+        spotIds: [
+          "kumdori-family-house",
+          "paiks-coffee-eunhaeng",
+          "jung-gu-history-hall",
+          "sonamu-jib"
+        ],
+        distance: "약 1.4km",
+        time: "4~5시간",
+        steps: 4200,
+        carbonSaved: 0.3,
+        labels: ["health-walk", "old-stories", "old-town-keeper"],
+        type: "core"
+      },
+      {
+        id: "night-walk",
+        name: "밤 코스",
+        emoji: "🌙",
+        tagline: "성심당 마감 후, 대흥동 밤의 얼굴",
+        spotIds: [
+          "sonamu-jib",
+          "city-traveler-bookstore",
+          "lock-house",
+          "euneungjeongi-street"
+        ],
+        distance: "약 1.3km",
+        time: "3~4시간",
+        steps: 3800,
+        carbonSaved: 0.3,
+        labels: ["night-stay", "small-shop-keeper"],
+        type: "core"
+      },
+      {
+        id: "nature-extended",
+        name: "자연 코스",
+        emoji: "🌳",
+        tagline: "도심 떠나 30분, 대전의 초록",
+        spotIds: [
+          "seongsimdang-main",
+          "sajeong-park",
+          "taepyeong-market",
+          "hanbat-arboretum"
+        ],
+        distance: "약 8km (대중교통/차 필수)",
+        time: "5~6시간",
+        steps: 6000,
+        carbonSaved: 0.8,
+        labels: ["green-finder", "carbon-cut", "old-town-keeper"],
+        type: "extended"
+      }
+    ];
+
+    // ===============================================================
+    // DEF팀 SDGs 라벨 (6주차 신설)
+    // 다른 팀의 단순 SDGs 번호 표시와 차별되는 사용자 언어로 번역된 라벨
+    // ===============================================================
+
+    var sdgsLabels = [
+      {
+        id: "health-walk",
+        emoji: "💚",
+        name: "건강한 한 걸음",
+        sdg: "SDG3",
+        sdgName: "건강과 웰빙",
+        description: "이 코스는 일상 속 걷기로 신체·정신 건강을 챙기는 활동입니다. 1만 보를 향한 첫걸음."
+      },
+      {
+        id: "old-town-keeper",
+        emoji: "🌍",
+        name: "원도심 지킴이",
+        sdg: "SDG11",
+        sdgName: "지속가능한 도시와 공동체",
+        description: "대전 원도심을 살리는 코스입니다. 잊혀가는 동네에 다시 활기를 더하는 한 걸음."
+      },
+      {
+        id: "carbon-cut",
+        emoji: "♻️",
+        name: "탄소 줄이기",
+        sdg: "SDG13",
+        sdgName: "기후변화 대응",
+        description: "걷거나 대중교통으로 이동해 탄소 배출을 줄이는 코스. 환경을 위한 작은 실천."
+      },
+      {
+        id: "public-transit",
+        emoji: "🚌",
+        name: "대중교통러",
+        sdg: "SDG11",
+        sdgName: "지속가능한 도시와 공동체",
+        description: "지하철·버스로 이동하는 코스. 자가용 대신 함께 나누는 길."
+      },
+      {
+        id: "nopo-supporter",
+        emoji: "🍚",
+        name: "노포 후원자",
+        sdg: "SDG8",
+        sdgName: "양질의 일자리와 경제성장",
+        description: "오랜 세월 자리를 지킨 노포를 찾아가는 코스. 지역 상권의 뿌리를 응원합니다."
+      },
+      {
+        id: "small-shop-keeper",
+        emoji: "💛",
+        name: "작은 가게 지킴이",
+        sdg: "SDG12",
+        sdgName: "책임감 있는 소비와 생산",
+        description: "프랜차이즈가 아닌 동네의 작은 가게를 선택하는 코스. 한 번의 선택이 동네를 살립니다."
+      },
+      {
+        id: "old-stories",
+        emoji: "📚",
+        name: "옛 이야기 듣기",
+        sdg: "SDG4",
+        sdgName: "양질의 교육",
+        description: "역사관·전시관·옛 골목에서 대전의 이야기를 듣는 코스. 도시의 시간을 배웁니다."
+      },
+      {
+        id: "wait-art",
+        emoji: "⏳",
+        name: "기다림의 미학",
+        sdg: "SDG11",
+        sdgName: "지속가능한 도시와 공동체",
+        description: "성심당 대기 시간을 다르게 쓰는 코스. 기다림이 도시를 더 깊게 보게 합니다."
+      },
+      {
+        id: "night-stay",
+        emoji: "🌙",
+        name: "밤의 머묾",
+        sdg: "SDG11",
+        sdgName: "지속가능한 도시와 공동체",
+        description: "낮에 떠나지 않고 밤까지 머무는 코스. 도시의 다른 얼굴을 만납니다."
+      },
+      {
+        id: "green-finder",
+        emoji: "🌳",
+        name: "초록 찾기",
+        sdg: "SDG15",
+        sdgName: "육상 생태계 보호",
+        description: "도심을 떠나 자연을 찾는 코스. 콘크리트 사이의 초록을 만나는 시간."
+      }
+    ];
+
+    // ============================================================
+    // 공영주차장 (parkingSpots) — spots의 parking 항목과 동기화
+    // - spots와 분리, 카테고리/태그 필터 영향 없음
+    // ============================================================
+    var parkingSpots = [
+      {
+        id: "public-parking-main",
+        name: "공영주차장",
+        lat: 36.3271409,
+        lng: 127.4282874,
+        fee: "공영주차 요금 (시간·요일별 상이, 현장 안내 확인)",
+        note: "원도심 공영주차장. 우천·도보 어려운 분 우선 권장."
+      }
+    ];
+    // 카테고리별 마커 색 (핀 모양 SVG에 적용)
+    var CATEGORY_COLORS = {
+      food: "#FF9800",     // 주황
+      cafe: "#795548",     // 갈색
+      sight: "#4CAF50",    // 초록
+      culture: "#9C27B0",  // 보라
+      shop: "#E91E63"      // 분홍
+    };
+
+    // 같은 카테고리는 마커 이미지를 한 번만 만들고 재사용 (성능·일관성)
+    var markerImageCache = {};
+    var parkingMarkerImage = null; // 파란색 P 마커 (주차장 전용)
+
+    // 지도·마커·필터 상태 (initMap 이후 사용)
+    var mapInstance = null;
+    var markerEntries = []; // { spot, marker, infowindow }
+    var parkingMarkerEntries = []; // { parking, marker, infowindow }
+    var activeCategory = ""; // "" = 전체, 그 외 food/cafe/sight/culture/shop
+    var activeTag = ""; // "" = 태그 필터 없음, 그 외 버튼의 data-tag 값
+    var showParking = true; // 주차장 마커 표시 여부 (토글 버튼)
+    var openInfoEntry = null; // 현재 열린 인포윈도우 { infowindow, marker }
+
+    // 성심당 본점 기준 도보 거리 계산
+    var SEONGSIMDANG = { lat: 36.3276832, lng: 127.4273424 };
+    var SEONGSIMDANG_ID = "seongsimdang-main";
+    var WALK_SPEED_M_PER_MIN = 67; // 시속 4km
+    var WALK_PATH_FACTOR = 1.3;
+
+    var helpEl = document.getElementById("help");
+
+    // ============================================================
+    // 클릭 통계 (localStorage) — 마커·길찾기 버튼 분석용
+    // ============================================================
+    function getStatCount(key) {
+      var v = localStorage.getItem(key);
+      return v ? parseInt(v, 10) : 0;
+    }
+
+    function getStatTimestamps(key) {
+      try {
+        return JSON.parse(localStorage.getItem(key) || "[]");
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function incrementStat(countKey, timestampKey) {
+      var count = getStatCount(countKey) + 1;
+      var timestamps = getStatTimestamps(timestampKey);
+      var now = new Date().toISOString();
+      timestamps.push(now);
+      localStorage.setItem(countKey, String(count));
+      localStorage.setItem(timestampKey, JSON.stringify(timestamps));
+      return { count: count, timestamp: now };
+    }
+
+    function trackMarkerClick(spotId) {
+      var result = incrementStat("click_" + spotId, "click_" + spotId + "_timestamps");
+      console.log("[Stats] 마커 클릭:", spotId, "| 총", result.count, "회 |", result.timestamp);
+    }
+
+    function trackDirectionsClick(spotId) {
+      var result = incrementStat("directions_" + spotId, "directions_" + spotId + "_timestamps");
+      console.log("[Stats] 길찾기 클릭:", spotId, "| 총", result.count, "회 |", result.timestamp);
+    }
+
+    // 길찾기 링크 onclick에서 호출 (infowindow HTML)
+    window.trackDirectionsClick = trackDirectionsClick;
+
+    // 개발자 도구 콘솔에서 showStats() 로 통계 확인
+    window.showStats = function () {
+      var summary = [];
+      var totalClicks = 0;
+      var totalDirections = 0;
+
+      for (var i = 0; i < spots.length; i++) {
+        var spot = spots[i];
+        if (spot.category === "parking") continue;
+        var clickCount = getStatCount("click_" + spot.id);
+        var dirCount = getStatCount("directions_" + spot.id);
+        totalClicks += clickCount;
+        totalDirections += dirCount;
+        summary.push({
+          spotId: spot.id,
+          name: spot.name,
+          markerClicks: clickCount,
+          directionsClicks: dirCount
+        });
+      }
+
+      console.log("=== 대전 상권 클릭 통계 ===");
+      console.table(summary);
+      console.log("합계 — 마커:", totalClicks, "| 길찾기:", totalDirections);
+
+      var detail = {};
+      for (var j = 0; j < spots.length; j++) {
+        var s = spots[j];
+        if (s.category === "parking") continue;
+        detail[s.id] = {
+          name: s.name,
+          clicks: {
+            count: getStatCount("click_" + s.id),
+            timestamps: getStatTimestamps("click_" + s.id + "_timestamps")
+          },
+          directions: {
+            count: getStatCount("directions_" + s.id),
+            timestamps: getStatTimestamps("directions_" + s.id + "_timestamps")
+          }
+        };
+      }
+      console.log("상세 (타임스탬프 포함):", detail);
+      return detail;
+    };
+
+    // 화면 전체에 안내 문구를 띄울 때 사용합니다 (서버 미실행, API 오류 등)
+    function showHelp(html) {
+      helpEl.innerHTML = html;
+      helpEl.style.display = "block";
+    }
+
+    // 두 좌표 간 직선거리(미터, Haversine)
+    function getDistanceMeters(lat1, lng1, lat2, lng2) {
+      var R = 6371000;
+      var toRad = function (deg) { return deg * Math.PI / 180; };
+      var dLat = toRad(lat2 - lat1);
+      var dLng = toRad(lng2 - lng1);
+      var a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    // 성심당 본점에서의 도보 거리 문구
+    function getWalkInfoFromSeongsimdang(lat, lng, spotId) {
+      if (spotId === SEONGSIMDANG_ID) {
+        return "여기에서 시작!";
+      }
+      var straight = getDistanceMeters(SEONGSIMDANG.lat, SEONGSIMDANG.lng, lat, lng);
+      var walkMeters = Math.round(straight * WALK_PATH_FACTOR);
+      if (walkMeters < 100) {
+        return "성심당에서 도보 1분 미만";
+      }
+      var minutes = Math.max(1, Math.round(walkMeters / WALK_SPEED_M_PER_MIN));
+      return "성심당에서 도보 " + minutes + "분 (" + walkMeters + "m)";
+    }
+
+    // 인포윈도우 닫기 (X 버튼·토글·다른 마커 클릭 시)
+    function closeOpenInfowindow() {
+      if (openInfoEntry) {
+        openInfoEntry.infowindow.close();
+        openInfoEntry = null;
+      }
+    }
+
+    window.closeCurrentInfowindow = closeOpenInfowindow;
+
+    // 마커 클릭: 다른 인포윈도우 닫기 + 같은 마커 토글
+    function handleInfowindowClick(entry, marker, onOpen) {
+      if (openInfoEntry && openInfoEntry.marker === marker) {
+        closeOpenInfowindow();
+        return;
+      }
+      closeOpenInfowindow();
+      if (onOpen) onOpen();
+      entry.infowindow.open(mapInstance, marker);
+      openInfoEntry = { infowindow: entry.infowindow, marker: marker };
+    }
+
+    // 인포윈도우 우측 상단 X 버튼 HTML
+    function buildInfowindowCloseButton() {
+      return (
+        '<button type="button" onclick="closeCurrentInfowindow();return false;" aria-label="닫기" ' +
+        'style="position:absolute;top:6px;right:6px;width:22px;height:22px;border:none;' +
+        'background:rgba(0,0,0,0.08);border-radius:50%;font-size:15px;line-height:1;' +
+        'cursor:pointer;color:#444;padding:0;">×</button>'
+      );
+    }
+
+    // category 값에 맞는 색의 마커 이미지를 만듭니다 (카카오 기본 빨간 핀 대신 사용)
+    function getMarkerImage(category) {
+      if (markerImageCache[category]) {
+        return markerImageCache[category];
+      }
+
+      var color = CATEGORY_COLORS[category] || "#757575";
+      var svg =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">' +
+        '<path fill="' + color + '" stroke="#ffffff" stroke-width="1.5" d="M14 0C7.4 0 2 5.4 2 12c0 8.5 12 26 12 26s12-17.5 12-26C26 5.4 20.6 0 14 0z"/>' +
+        '<circle fill="#ffffff" cx="14" cy="12" r="5"/></svg>';
+      var imageUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+
+      var image = new kakao.maps.MarkerImage(
+        imageUrl,
+        new kakao.maps.Size(28, 40),
+        { offset: new kakao.maps.Point(14, 40) }
+      );
+      markerImageCache[category] = image;
+      return image;
+    }
+
+    // 주차장 전용 마커: 파란 핀 + 흰 원 안에 "P"
+    function getParkingMarkerImage() {
+      if (parkingMarkerImage) {
+        return parkingMarkerImage;
+      }
+      var svg =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">' +
+        '<path fill="#2196F3" stroke="#ffffff" stroke-width="1.5" d="M14 0C7.4 0 2 5.4 2 12c0 8.5 12 26 12 26s12-17.5 12-26C26 5.4 20.6 0 14 0z"/>' +
+        '<circle fill="#ffffff" cx="14" cy="12" r="7"/>' +
+        '<text x="14" y="16" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#2196F3">P</text>' +
+        "</svg>";
+      var imageUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+      parkingMarkerImage = new kakao.maps.MarkerImage(
+        imageUrl,
+        new kakao.maps.Size(28, 40),
+        { offset: new kakao.maps.Point(14, 40) }
+      );
+      return parkingMarkerImage;
+    }
+
+    // 주차장 말풍선: 이름 + 요금(fee) + 메모(note)
+    function buildParkingInfoContent(parking) {
+      return (
+        '<div style="position:relative;padding:10px 32px 10px 14px;font-size:13px;line-height:1.6;min-width:200px;">' +
+        buildInfowindowCloseButton() +
+        '<strong style="font-size:15px;color:#1976D2;">🅿️ ' + parking.name + "</strong><br>" +
+        '<span style="color:#555;">fee: ' + parking.fee + "</span><br>" +
+        '<span style="color:#666;font-size:12px;">note: ' + parking.note + "</span>" +
+        "</div>"
+      );
+    }
+
+    // 카카오맵 길찾기 페이지 URL (도착지: 장소 이름 + 좌표)
+    function buildDirectionsUrl(spot) {
+      return (
+        "https://map.kakao.com/link/to/" +
+        encodeURIComponent(spot.name) + "," + spot.lat + "," + spot.lng
+      );
+    }
+
+    // 마커 클릭 시 말풍선: 장소 정보 + 길찾기 버튼
+    function buildInfoContent(spot) {
+      var directionsUrl = buildDirectionsUrl(spot);
+      var walkInfo = getWalkInfoFromSeongsimdang(spot.lat, spot.lng, spot.id);
+      var walkLine =
+        spot.id === SEONGSIMDANG_ID
+          ? '<span style="color:#E65100;font-weight:600;">📍 ' + walkInfo + "</span><br>"
+          : '<span style="color:#E65100;font-size:12px;">🚶 ' + walkInfo + "</span><br>";
+      return (
+        '<div style="position:relative;padding:10px 32px 10px 14px;font-size:13px;line-height:1.6;min-width:200px;">' +
+        buildInfowindowCloseButton() +
+        '<strong style="font-size:15px;">' + spot.name + "</strong><br>" +
+        walkLine +
+        '<span style="color:#555;">' + spot.summary + "</span><br>" +
+        '<span style="color:#888;font-size:12px;">영업: ' + spot.hours + "</span><br>" +
+        '<span style="color:#666;font-size:12px;">' + spot.district + "</span><br>" +
+        '<a href="' + directionsUrl + '" target="_blank" rel="noopener noreferrer" ' +
+        'onclick="trackDirectionsClick(\'' + spot.id + '\');" ' +
+        'style="display:inline-block;margin-top:10px;padding:10px 16px;background:#FEE500;' +
+        'color:#3c1e1e;font-size:14px;font-weight:600;text-decoration:none;border-radius:8px;' +
+        'box-shadow:0 1px 3px rgba(0,0,0,0.15);">🧭 길찾기</a>' +
+        buildSpotActionsHtml(spot) +
+        buildCourseChipsHtml(spot) +
+        "</div>"
+      );
+    }
+
+    // 이 장소가 현재 선택된 카테고리·태그 조건(AND)을 만족하는지 검사
+    function spotMatchesFilter(spot) {
+      if (activeCategory && spot.category !== activeCategory) {
+        return false;
+      }
+      if (activeTag && spot.tags.indexOf(activeTag) === -1) {
+        return false;
+      }
+      return true;
+    }
+
+    // spots 마커만 필터 (주차장은 applyParkingVisibility에서 따로 처리)
+    function applyFilters() {
+      if (!mapInstance) return;
+
+      for (var i = 0; i < markerEntries.length; i++) {
+        var entry = markerEntries[i];
+        var show = spotMatchesFilter(entry.spot);
+        entry.marker.setMap(show ? mapInstance : null);
+        if (!show) {
+          entry.infowindow.close();
+          if (openInfoEntry && openInfoEntry.marker === entry.marker) {
+            openInfoEntry = null;
+          }
+        }
+      }
+    }
+
+    // 주차장 마커 표시/숨김 (카테고리·태그 필터와 무관)
+    function applyParkingVisibility() {
+      if (!mapInstance) return;
+
+      for (var i = 0; i < parkingMarkerEntries.length; i++) {
+        var entry = parkingMarkerEntries[i];
+        entry.marker.setMap(showParking ? mapInstance : null);
+        if (!showParking) {
+          entry.infowindow.close();
+          if (openInfoEntry && openInfoEntry.marker === entry.marker) {
+            openInfoEntry = null;
+          }
+        }
+      }
+    }
+
+    // 필터 버튼 클릭 이벤트 연결 (지도 로드 후 한 번 호출)
+    function initFilters() {
+      var categoryRow = document.getElementById("category-row");
+      var tagRow = document.getElementById("tag-row");
+
+      // 카테고리: 하나만 선택 (전체 포함)
+      categoryRow.addEventListener("click", function (e) {
+        var btn = e.target.closest(".filter-btn");
+        if (!btn || !categoryRow.contains(btn)) return;
+
+        activeCategory = btn.getAttribute("data-category") || "";
+
+        var buttons = categoryRow.querySelectorAll(".filter-btn");
+        for (var i = 0; i < buttons.length; i++) {
+          buttons[i].classList.toggle("active", buttons[i] === btn);
+        }
+        applyFilters();
+      });
+
+      // 태그: 클릭 시 선택, 같은 버튼 다시 누르면 해제(전체 태그)
+      tagRow.addEventListener("click", function (e) {
+        var btn = e.target.closest(".filter-btn");
+        if (!btn || !tagRow.contains(btn)) return;
+
+        var tag = btn.getAttribute("data-tag") || "";
+        if (activeTag === tag) {
+          activeTag = "";
+        } else {
+          activeTag = tag;
+        }
+
+        var buttons = tagRow.querySelectorAll(".filter-btn");
+        for (var j = 0; j < buttons.length; j++) {
+          var b = buttons[j];
+          b.classList.toggle("active", b.getAttribute("data-tag") === activeTag && activeTag !== "");
+        }
+        applyFilters();
+      });
+
+      // 주차장 표시 토글 (spots 필터와 별개)
+      var parkingToggleBtn = document.getElementById("parking-toggle-btn");
+      parkingToggleBtn.addEventListener("click", function () {
+        showParking = !showParking;
+        parkingToggleBtn.classList.toggle("active", showParking);
+        applyParkingVisibility();
+      });
+    }
+
+    // parkingSpots 배열의 주차장 마커 생성
+    function initParkingMarkers() {
+      parkingMarkerEntries = [];
+
+      for (var i = 0; i < parkingSpots.length; i++) {
+        var parking = parkingSpots[i];
+        var position = new kakao.maps.LatLng(parking.lat, parking.lng);
+
+        var marker = new kakao.maps.Marker({
+          position: position,
+          image: getParkingMarkerImage(),
+          zIndex: 2
+        });
+
+        var infowindow = new kakao.maps.InfoWindow({
+          content: buildParkingInfoContent(parking)
+        });
+
+        var entry = { parking: parking, marker: marker, infowindow: infowindow };
+
+        (function (ent, m) {
+          kakao.maps.event.addListener(m, "click", function () {
+            handleInfowindowClick(ent, m);
+          });
+        })(entry, marker);
+
+        parkingMarkerEntries.push(entry);
+      }
+
+      applyParkingVisibility();
+    }
+
+    // 카카오 지도를 만들고, spots 배열의 장소마다 마커를 찍습니다
+    function initMap() {
+      var container = document.getElementById("map");
+
+      mapInstance = new kakao.maps.Map(container, {
+        center: new kakao.maps.LatLng(36.3274, 127.4248),
+        level: 5
+      });
+
+      // 지도 빈 곳 클릭 시 인포윈도우 닫기
+      kakao.maps.event.addListener(mapInstance, "click", function () {
+        closeOpenInfowindow();
+      });
+
+      // 카카오맵 기본 닫기(×) 버튼 클릭 시 추적 상태 초기화
+      container.addEventListener("click", function (e) {
+        if (e.target.closest && e.target.closest(".btn_close")) {
+          openInfoEntry = null;
+        }
+      }, true);
+
+      markerEntries = [];
+
+      for (var i = 0; i < spots.length; i++) {
+        var spot = spots[i];
+        if (spot.category === "parking") continue;
+        var position = new kakao.maps.LatLng(spot.lat, spot.lng);
+
+        var marker = new kakao.maps.Marker({
+          position: position,
+          image: getMarkerImage(spot.category)
+        });
+
+        var infowindow = new kakao.maps.InfoWindow({
+          content: buildInfoContent(spot)
+        });
+
+        var entry = { spot: spot, marker: marker, infowindow: infowindow };
+
+        (function (ent, m, spotId) {
+          kakao.maps.event.addListener(m, "click", function () {
+            handleInfowindowClick(ent, m, function () {
+              trackMarkerClick(spotId);
+            });
+          });
+        })(entry, marker, spot.id);
+
+        markerEntries.push(entry);
+      }
+
+      initParkingMarkers();
+      initFilters();
+      applyFilters();
+      initPhase2(); // Phase 2: 코스·SDGs 라벨 초기화
+    }
+
+    // ============================================================
+    // Phase 2 — 코스 / SDGs 라벨 로직
+    // ============================================================
+
+    // 빠른 조회용 맵
+    var spotById = {};
+    var courseById = {};
+    var labelById = {};
+    var spotToCourses = {};   // spotId -> [course, ...]  (말풍선 칩용 역인덱스)
+    var markerEntryById = {}; // spotId -> markerEntry     (initMap 마커 생성 후 채움)
+
+    // 코스 강조 상태
+    var activeCoursePolyline = null;
+    var activeCourseId = null;
+    var numberedMarkerCache = {};
+    var COURSE_HILITE_COLOR = "#1A237E"; // 순번 핀·동선 색 (카테고리 색과 구분)
+
+    // 조회 맵 + 역인덱스를 즉시 구성 (마커 생성 전에 spotToCourses가 필요함)
+    (function buildCourseLookups() {
+      for (var i = 0; i < spots.length; i++) spotById[spots[i].id] = spots[i];
+      for (var c = 0; c < courses.length; c++) courseById[courses[c].id] = courses[c];
+      for (var l = 0; l < sdgsLabels.length; l++) labelById[sdgsLabels[l].id] = sdgsLabels[l];
+      for (var k = 0; k < courses.length; k++) {
+        var course = courses[k];
+        var added = {};
+        for (var s = 0; s < course.spotIds.length; s++) {
+          var sid = course.spotIds[s];
+          if (added[sid]) continue; // 코스 안에서 같은 가게(시작=끝) 중복 방지
+          added[sid] = true;
+          if (!spotToCourses[sid]) spotToCourses[sid] = [];
+          spotToCourses[sid].push(course);
+        }
+      }
+    })();
+
+    // 순번이 찍힌 강조 마커 이미지 (1, 2, 3 ...)
+    function getNumberedMarkerImage(number) {
+      if (numberedMarkerCache[number]) return numberedMarkerCache[number];
+      var svg =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="46" viewBox="0 0 34 46">' +
+        '<path fill="' + COURSE_HILITE_COLOR + '" stroke="#ffffff" stroke-width="2" ' +
+        'd="M17 0C9.27 0 3 6.27 3 14c0 9.5 14 32 14 32s14-22.5 14-32C31 6.27 24.73 0 17 0z"/>' +
+        '<circle fill="#ffffff" cx="17" cy="14" r="9"/>' +
+        '<text x="17" y="18.5" text-anchor="middle" font-family="Arial,sans-serif" ' +
+        'font-size="13" font-weight="bold" fill="' + COURSE_HILITE_COLOR + '">' + number + "</text>" +
+        "</svg>";
+      var url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+      var img = new kakao.maps.MarkerImage(
+        url, new kakao.maps.Size(34, 46), { offset: new kakao.maps.Point(17, 46) }
+      );
+      numberedMarkerCache[number] = img;
+      return img;
+    }
+
+    // 코스의 고유 정류장 수 (시작=끝 중복 제외)
+    function countUniqueStops(course) {
+      var seen = {}, n = 0;
+      for (var i = 0; i < course.spotIds.length; i++) {
+        if (!seen[course.spotIds[i]]) { seen[course.spotIds[i]] = true; n++; }
+      }
+      return n;
+    }
+
+    // ── Task 1 (C안): 말풍선 안 "이 가게가 포함된 코스" 칩 ──
+    function buildCourseChipsHtml(spot) {
+      var list = spotToCourses[spot.id];
+      if (!list || list.length === 0) return "";
+      var chips = "";
+      for (var i = 0; i < list.length; i++) {
+        var co = list[i];
+        chips +=
+          '<span class="iw-course-chip" ' +
+          'onclick="focusCourseFromChip(\'' + co.id + '\');return false;">' +
+          (co.emoji || "") + " " + co.name + "</span>";
+      }
+      return (
+        '<div class="iw-course-wrap">' +
+        '<div class="iw-course-label">이 가게가 포함된 코스</div>' +
+        '<div class="iw-course-chips">' + chips + "</div>" +
+        "</div>"
+      );
+    }
+
+    // 칩 클릭 → 말풍선 닫고 해당 코스를 지도에 표시
+    window.focusCourseFromChip = function (courseId) {
+      closeOpenInfowindow();
+      var course = courseById[courseId];
+      if (course) showCourseOnMap(course);
+    };
+
+    // ── Task 4: SDGs 라벨 태그 HTML (코스 카드에서 사용) ──
+    function buildLabelTagsHtml(labelIds) {
+      if (!labelIds || !labelIds.length) return "";
+      var html = "";
+      for (var i = 0; i < labelIds.length; i++) {
+        var lb = labelById[labelIds[i]];
+        if (!lb) continue;
+        html +=
+          '<span class="sdgs-label-tag" data-label-id="' + lb.id + '">' +
+          (lb.emoji || "") + " " + lb.name + "</span>";
+      }
+      return html;
+    }
+
+    // ── Task 2: 코스 카드 1장 ──
+    function buildCourseCardHtml(course) {
+      var uniqueCount = countUniqueStops(course);
+      var isExt = course.type === "extended";
+      var badge = isExt ? "확장" : "핵심";
+      var extClass = isExt ? " extended" : "";
+      var prog = getCourseProgress(course); // { done, total, complete }
+      var doneBadge = prog.complete ? '<span class="course-done-badge">✅ 완주</span>' : "";
+      var progClass = prog.complete ? " done" : "";
+      var pct = prog.total ? Math.round((prog.done / prog.total) * 100) : 0;
+      var progressHtml =
+        '<div class="course-progress' + progClass + '">' +
+        '<span class="course-progress-num">' + prog.done + "/" + prog.total + " 체크인</span>" +
+        '<span class="course-progress-bar"><span class="course-progress-fill" style="width:' + pct + '%;"></span></span>' +
+        "</div>";
+      var meta =
+        "<span><b>" + uniqueCount + "곳</b></span>" +
+        (course.distance ? "<span>" + course.distance + "</span>" : "") +
+        (course.time ? "<span>" + course.time + "</span>" : "") +
+        (course.steps ? "<span>약 " + course.steps.toLocaleString() + "보</span>" : "");
+      return (
+        '<div class="course-card' + extClass + '" data-course-id="' + course.id + '">' +
+        '<div class="course-card-top">' +
+        '<span class="course-card-emoji">' + (course.emoji || "📍") + "</span>" +
+        '<span class="course-card-name">' + course.name + "</span>" +
+        doneBadge +
+        '<span class="course-card-badge">' + badge + "</span>" +
+        "</div>" +
+        '<div class="course-card-tagline">' + (course.tagline || "") + "</div>" +
+        progressHtml +
+        '<div class="course-card-meta">' + meta + "</div>" +
+        (course.note ? '<div class="course-card-note">ℹ️ ' + course.note + "</div>" : "") +
+        '<div class="course-labels">' + buildLabelTagsHtml(course.labels) + "</div>" +
+        '<div class="course-card-cta">지도에서 코스 보기 →</div>' +
+        (DEMO_MODE ? '<button type="button" class="course-demo-complete" data-course-id="' + course.id + '">▶ 완주 체험 (데모)</button>' : "") +
+        "</div>"
+      );
+    }
+
+    // 코스 목록 렌더 (핵심 / 확장 분리)
+    function renderCourseList() {
+      var box = document.getElementById("course-list");
+      if (!box) return;
+      var core = [], ext = [];
+      for (var i = 0; i < courses.length; i++) {
+        (courses[i].type === "extended" ? ext : core).push(courses[i]);
+      }
+      var html = '<div class="course-section-label">핵심 코스 <span class="sub">' +
+        core.length + "개 · 도보 중심</span></div>";
+      for (var a = 0; a < core.length; a++) html += buildCourseCardHtml(core[a]);
+      if (ext.length) {
+        html += '<div class="course-section-label extended">확장 코스 <span class="sub">' +
+          ext.length + "개 · 대중교통/차 필요</span></div>";
+        for (var b = 0; b < ext.length; b++) html += buildCourseCardHtml(ext[b]);
+      }
+      box.innerHTML = html;
+    }
+
+    function openCoursePanel() {
+      renderCourseList(); // 진행률·완주 뱃지 최신화
+      var p = document.getElementById("course-panel");
+      p.classList.add("open");
+      p.setAttribute("aria-hidden", "false");
+    }
+    function closeCoursePanel() {
+      var p = document.getElementById("course-panel");
+      p.classList.remove("open");
+      p.setAttribute("aria-hidden", "true");
+    }
+
+    // ── Task 3: 코스를 지도에 표시 (순번 마커 + 동선 + 화면 맞춤) ──
+    function showCourseOnMap(course) {
+      if (!mapInstance || !course) return;
+      closeOpenInfowindow();
+      closeCoursePanel();
+      clearCourseHighlight(); // 이전 코스 정리
+
+      activeCourseId = course.id;
+
+      // 1) 경로 좌표 (중복 포함 — 순환 코스는 시작점으로 복귀하는 선)
+      var path = [];
+      var bounds = new kakao.maps.LatLngBounds();
+      for (var i = 0; i < course.spotIds.length; i++) {
+        var sp = spotById[course.spotIds[i]];
+        if (!sp) continue;
+        var ll = new kakao.maps.LatLng(sp.lat, sp.lng);
+        path.push(ll);
+        bounds.extend(ll);
+      }
+
+      // 2) 모든 마커 숨기고, 코스 정류장만 순번 마커로 표시
+      for (var m = 0; m < markerEntries.length; m++) markerEntries[m].marker.setMap(null);
+      for (var pk = 0; pk < parkingMarkerEntries.length; pk++) parkingMarkerEntries[pk].marker.setMap(null);
+
+      var numbered = {}, seq = 0;
+      for (var s = 0; s < course.spotIds.length; s++) {
+        var id = course.spotIds[s];
+        if (numbered[id]) continue; // 같은 가게는 첫 등장 순번만
+        numbered[id] = true;
+        seq++;
+        var entry = markerEntryById[id];
+        if (entry) {
+          entry.marker.setImage(getNumberedMarkerImage(seq));
+          entry.marker.setZIndex(5);
+          entry.marker.setMap(mapInstance);
+        }
+      }
+
+      // 3) 동선 폴리라인
+      activeCoursePolyline = new kakao.maps.Polyline({
+        path: path,
+        strokeWeight: 5,
+        strokeColor: COURSE_HILITE_COLOR,
+        strokeOpacity: 0.85,
+        strokeStyle: "solid"
+      });
+      activeCoursePolyline.setMap(mapInstance);
+
+      // 4) 화면을 코스 전체에 맞춤 (하단 배너 공간 고려해 아래 여백 크게)
+      mapInstance.setBounds(bounds, 70, 50, 120, 50);
+
+      // 5) 활성 배너
+      document.getElementById("course-active-name").textContent =
+        (course.emoji || "") + " " + course.name;
+      document.getElementById("course-active-tagline").textContent = course.tagline || "";
+      document.getElementById("course-active-bar").classList.add("open");
+    }
+    window.showCourseOnMap = showCourseOnMap;
+
+    // 코스 강조 해제 → 마커 이미지 원복 + 현재 필터/주차장 상태로 복귀
+    function clearCourseHighlight() {
+      if (activeCoursePolyline) {
+        activeCoursePolyline.setMap(null);
+        activeCoursePolyline = null;
+      }
+      for (var i = 0; i < markerEntries.length; i++) {
+        var e = markerEntries[i];
+        e.marker.setImage(getMarkerImage(e.spot.category));
+        e.marker.setZIndex(0);
+      }
+      activeCourseId = null;
+      var bar = document.getElementById("course-active-bar");
+      if (bar) bar.classList.remove("open");
+      if (mapInstance) {
+        applyFilters();
+        applyParkingVisibility();
+      }
+    }
+    window.clearCourseHighlight = clearCourseHighlight;
+
+    // ── Task 4: SDGs 라벨 모달 ──
+    function openLabelModal(labelId) {
+      var lb = labelById[labelId];
+      if (!lb) return;
+      document.getElementById("label-modal-emoji").textContent = lb.emoji || "";
+      document.getElementById("label-modal-name").textContent = lb.name || "";
+      document.getElementById("label-modal-sdg").textContent =
+        (lb.sdg || "") + (lb.sdgName ? " · " + lb.sdgName : "");
+      document.getElementById("label-modal-desc").textContent = lb.description || "";
+      var modal = document.getElementById("label-modal");
+      modal.classList.add("open");
+      modal.setAttribute("aria-hidden", "false");
+    }
+    function closeLabelModal() {
+      var modal = document.getElementById("label-modal");
+      modal.classList.remove("open");
+      modal.setAttribute("aria-hidden", "true");
+    }
+
+    // Phase 2 초기화: 마커 조회 맵 구성, 목록 렌더, 버튼·이벤트 연결
+    function initPhase2() {
+      // 데모 모드면 배지 표시 (renderCourseList 전에 — 카드에 완주 체험 버튼이 붙음)
+      if (DEMO_MODE) document.getElementById("demo-badge").classList.add("on");
+
+      // markerEntries -> spotId 조회 맵 (마커 생성 후)
+      markerEntryById = {};
+      for (var m = 0; m < markerEntries.length; m++) {
+        markerEntryById[markerEntries[m].spot.id] = markerEntries[m];
+      }
+
+      renderCourseList();
+
+      document.getElementById("course-fab").addEventListener("click", openCoursePanel);
+      document.getElementById("course-panel-close").addEventListener("click", closeCoursePanel);
+      // 패널 딤 배경 클릭 시 닫기
+      document.getElementById("course-panel").addEventListener("click", function (e) {
+        if (e.target === this) closeCoursePanel();
+      });
+      // 코스 카드 / 라벨 태그 클릭 (이벤트 위임)
+      document.getElementById("course-list").addEventListener("click", function (e) {
+        var demoBtn = e.target.closest(".course-demo-complete");
+        if (demoBtn) {
+          e.stopPropagation();
+          demoCompleteCourse(demoBtn.getAttribute("data-course-id"));
+          return;
+        }
+        var tag = e.target.closest(".sdgs-label-tag");
+        if (tag) {
+          e.stopPropagation();
+          openLabelModal(tag.getAttribute("data-label-id"));
+          return;
+        }
+        var card = e.target.closest(".course-card");
+        if (card) {
+          var course = courseById[card.getAttribute("data-course-id")];
+          if (course) showCourseOnMap(course);
+        }
+      });
+      // 활성 배너 "전체 보기"
+      document.getElementById("course-active-clear").addEventListener("click", clearCourseHighlight);
+      // 라벨 모달 닫기 (X / 딤 배경)
+      document.getElementById("label-modal-close").addEventListener("click", closeLabelModal);
+      document.getElementById("label-modal").addEventListener("click", function (e) {
+        if (e.target === this) closeLabelModal();
+      });
+      // ESC: 모달 > 패널 > 코스강조 순서로 닫기
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" || e.keyCode === 27) {
+          if (document.getElementById("review-modal").classList.contains("open")) closeReviewModal();
+          else if (document.getElementById("label-modal").classList.contains("open")) closeLabelModal();
+          else if (document.getElementById("course-panel").classList.contains("open")) closeCoursePanel();
+          else if (activeCourseId) clearCourseHighlight();
+        }
+      });
+
+      initPhase3Events(); // 체크인/리뷰 이벤트 연결
+    }
+
+    // ============================================================
+    // Phase 3 — 체크인 / 완주 뱃지 / 리뷰
+    // ============================================================
+
+    var CHECKIN_RADIUS_M = 100; // 100m 이내에서만 체크인 인정
+
+    // 데모 모드: index.html?demo=1 로 열면 위치 검사 없이 즉시 체크인
+    // (실제 URL index.html 은 100m 위치 로직 그대로 유지)
+    var DEMO_MODE = false;
+    try { DEMO_MODE = new URLSearchParams(location.search).get("demo") === "1"; } catch (e) {}
+
+    // 리뷰 라벨 (별점 대신 — 긍정 / 건설 분리)
+    var REVIEW_POSITIVE = [
+      "친절해요", "분위기 좋아요", "가성비 좋아요",
+      "또 가고 싶어요", "사진 찍기 좋아요", "현지인 추천"
+    ];
+    var REVIEW_CONSTRUCTIVE = [
+      "웨이팅이 길어요", "가격대가 있어요", "공간이 좁아요",
+      "찾기 어려워요", "주차가 불편해요", "정보가 더 필요해요"
+    ];
+
+    // ── localStorage 헬퍼 ──
+    function readJSON(key, fallback) {
+      try { return JSON.parse(localStorage.getItem(key)) || fallback; }
+      catch (e) { return fallback; }
+    }
+    function getCheckins() { return readJSON("checkins", {}); } // { spotId: ISOtime }
+    function isCheckedIn(spotId) { return !!getCheckins()[spotId]; }
+    function setCheckin(spotId) {
+      var c = getCheckins();
+      c[spotId] = new Date().toISOString();
+      localStorage.setItem("checkins", JSON.stringify(c));
+    }
+    function getCourseBadges() { return readJSON("course_badges", {}); } // { courseId: ISOtime }
+    function hasCourseBadge(courseId) { return !!getCourseBadges()[courseId]; }
+    function setCourseBadge(courseId) {
+      var b = getCourseBadges();
+      b[courseId] = new Date().toISOString();
+      localStorage.setItem("course_badges", JSON.stringify(b));
+    }
+    function getReviews(spotId) { return readJSON("review_" + spotId, {}); } // { label: count }
+    function addReviewLabels(spotId, labels) {
+      var r = getReviews(spotId);
+      for (var i = 0; i < labels.length; i++) r[labels[i]] = (r[labels[i]] || 0) + 1;
+      localStorage.setItem("review_" + spotId, JSON.stringify(r));
+    }
+    function reviewTotal(spotId) {
+      var r = getReviews(spotId), n = 0;
+      for (var k in r) if (r.hasOwnProperty(k)) n += r[k];
+      return n;
+    }
+
+    // 코스 진행률 (고유 정류장 중 체크인 수)
+    function getCourseProgress(course) {
+      var seen = {}, total = 0, done = 0;
+      var checks = getCheckins();
+      for (var i = 0; i < course.spotIds.length; i++) {
+        var id = course.spotIds[i];
+        if (seen[id]) continue;
+        seen[id] = true; total++;
+        if (checks[id]) done++;
+      }
+      return { done: done, total: total, complete: total > 0 && done === total };
+    }
+
+    // ── 토스트 ──
+    function showToast(html, type, durationMs) {
+      var wrap = document.getElementById("toast-wrap");
+      var el = document.createElement("div");
+      el.className = "toast" + (type ? " " + type : "");
+      el.innerHTML = html;
+      wrap.appendChild(el);
+      var ms = durationMs || 3200;
+      setTimeout(function () {
+        el.classList.add("leaving");
+        setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 260);
+      }, ms);
+    }
+
+    // ── Task 1: 위치 기반 체크인 ──
+    // 인포윈도우 액션 영역 (체크인 / 리뷰 버튼 + 상태)
+    function buildSpotActionsHtml(spot) {
+      if (spot.category === "parking") return "";
+      var checked = isCheckedIn(spot.id);
+      var rTotal = reviewTotal(spot.id);
+      var checkinBtn = checked
+        ? '<button type="button" class="iw-action-btn done" disabled>✅ 체크인 완료</button>'
+        : '<button type="button" class="iw-action-btn" onclick="doCheckin(\'' + spot.id + '\');return false;">📍 체크인</button>';
+      var reviewBtn =
+        '<button type="button" class="iw-action-btn" onclick="openReviewModal(\'' + spot.id + '\');return false;">📝 리뷰' +
+        (rTotal ? " (" + rTotal + ")" : "") + "</button>";
+      var status = "";
+      if (checked) {
+        status = '<div class="iw-status"><span class="ok">✓ 방문 인증됨</span> · 100m 이내에서 체크인했어요</div>';
+      }
+      return '<div class="iw-actions">' + checkinBtn + reviewBtn + "</div>" + status;
+    }
+
+    // 인포윈도우 내용을 현재 상태로 다시 그림 (체크인/리뷰 후)
+    function refreshSpotInfowindow(spotId) {
+      var entry = markerEntryById[spotId];
+      if (!entry) return;
+      entry.infowindow.setContent(buildInfoContent(entry.spot));
+    }
+
+    // 체크인 실행: 현재 위치를 받아 100m 이내인지 확인
+    window.doCheckin = function (spotId) {
+      var spot = spotById[spotId];
+      if (!spot) return;
+      if (isCheckedIn(spotId)) { showToast("이미 체크인한 곳이에요.", "success"); return; }
+      // 데모 모드: 위치 검사 건너뛰고 즉시 인증
+      if (DEMO_MODE) { completeCheckin(spotId, true); return; }
+      if (!navigator.geolocation) {
+        showToast("이 브라우저는 위치 기능을 지원하지 않아요.", "error");
+        return;
+      }
+      showToast("📡 현재 위치를 확인하는 중…", null, 2000);
+      navigator.geolocation.getCurrentPosition(
+        function (pos) {
+          var dist = getDistanceMeters(
+            pos.coords.latitude, pos.coords.longitude, spot.lat, spot.lng
+          );
+          if (dist <= CHECKIN_RADIUS_M) {
+            completeCheckin(spotId);
+          } else {
+            showToast(
+              "여기서 <b>" + Math.round(dist) + "m</b> 떨어져 있어요.<br>" +
+              spot.name + " <b>" + CHECKIN_RADIUS_M + "m</b> 안에서 다시 시도해 주세요.",
+              "error", 3600
+            );
+          }
+        },
+        function (err) {
+          var msg = "위치를 가져오지 못했어요.";
+          if (err && err.code === 1) msg = "위치 권한이 거부됐어요. 브라우저에서 위치 허용 후 다시 시도해 주세요.";
+          else if (err && err.code === 3) msg = "위치 확인이 시간 초과됐어요. 다시 시도해 주세요.";
+          showToast(msg, "error", 3800);
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+      );
+    };
+
+    // 체크인 성공 처리 (실제 위치 인증 통과 또는 데모용 호출)
+    function completeCheckin(spotId, isDemo) {
+      var spot = spotById[spotId];
+      setCheckin(spotId);
+      refreshSpotInfowindow(spotId);
+      showToast(
+        "✅ <b>" + spot.name + "</b> 체크인 완료!" +
+        (isDemo ? " <span style=\"opacity:.75;\">(데모)</span>" : ""),
+        "success"
+      );
+      checkCourseCompletions();
+    }
+
+    // ── Task 2: 코스 완주 판정 + 뱃지 토스트 ──
+    function checkCourseCompletions() {
+      for (var i = 0; i < courses.length; i++) {
+        var course = courses[i];
+        if (hasCourseBadge(course.id)) continue;
+        var prog = getCourseProgress(course);
+        if (prog.complete) {
+          setCourseBadge(course.id);
+          // 코스의 SDGs 라벨을 뱃지 설명으로
+          var labelNames = [];
+          for (var l = 0; l < (course.labels || []).length; l++) {
+            var lb = labelById[course.labels[l]];
+            if (lb) labelNames.push((lb.emoji || "") + " " + lb.name);
+          }
+          showToast(
+            '<div class="t-title">🏅 ' + (course.emoji || "") + " " + course.name + " 완주!</div>" +
+            '<div class="t-sub">' + (labelNames.length ? labelNames.join("  ") : "코스 완주 뱃지 획득") + "</div>",
+            "badge", 5000
+          );
+          // 코스 패널이 열려 있으면 진행률 갱신
+          if (document.getElementById("course-panel").classList.contains("open")) renderCourseList();
+        }
+      }
+    }
+
+    // ── Task 3: 리뷰 (긍정 / 건설 라벨) ──
+    var reviewModalSpotId = null;
+    var reviewSelected = {}; // { label: true }
+
+    window.openReviewModal = function (spotId) {
+      var spot = spotById[spotId];
+      if (!spot) return;
+      reviewModalSpotId = spotId;
+      reviewSelected = {};
+      document.getElementById("review-title").textContent = spot.name + " 리뷰";
+      var counts = getReviews(spotId);
+      document.getElementById("review-pos").innerHTML = buildReviewChips(REVIEW_POSITIVE, "pos", counts);
+      document.getElementById("review-con").innerHTML = buildReviewChips(REVIEW_CONSTRUCTIVE, "con", counts);
+      updateReviewSubmitState();
+      var modal = document.getElementById("review-modal");
+      modal.classList.add("open");
+      modal.setAttribute("aria-hidden", "false");
+    };
+
+    function buildReviewChips(labels, kind, counts) {
+      var html = "";
+      for (var i = 0; i < labels.length; i++) {
+        var lab = labels[i];
+        var cnt = counts[lab] ? '<span class="cnt">' + counts[lab] + "</span>" : "";
+        html +=
+          '<span class="review-chip ' + kind + '" data-label="' + lab + '">' + lab + cnt + "</span>";
+      }
+      return html;
+    }
+
+    function closeReviewModal() {
+      var modal = document.getElementById("review-modal");
+      modal.classList.remove("open");
+      modal.setAttribute("aria-hidden", "true");
+      reviewModalSpotId = null;
+    }
+
+    function updateReviewSubmitState() {
+      var any = false;
+      for (var k in reviewSelected) if (reviewSelected[k]) { any = true; break; }
+      document.getElementById("review-submit").disabled = !any;
+    }
+
+    function submitReview() {
+      if (!reviewModalSpotId) return;
+      var picked = [];
+      for (var k in reviewSelected) if (reviewSelected[k]) picked.push(k);
+      if (!picked.length) return;
+      addReviewLabels(reviewModalSpotId, picked);
+      var sid = reviewModalSpotId;
+      closeReviewModal();
+      refreshSpotInfowindow(sid);
+      showToast("📝 리뷰가 등록됐어요. 고마워요!", "success");
+    }
+
+    // 코스 "완주 체험" (데모 버튼) — 코스 전체 체크인 + 뱃지 토스트를 매번 재현
+    function demoCompleteCourse(courseId) {
+      var c = courseById[courseId];
+      if (!c) return;
+      // 이 코스 뱃지를 비워 토스트가 매번 다시 뜨게 (리허설 반복용)
+      var badges = getCourseBadges();
+      delete badges[courseId];
+      localStorage.setItem("course_badges", JSON.stringify(badges));
+      var seen = {};
+      for (var i = 0; i < c.spotIds.length; i++) {
+        var id = c.spotIds[i];
+        if (seen[id]) continue;
+        seen[id] = true;
+        setCheckin(id);
+        refreshSpotInfowindow(id);
+      }
+      checkCourseCompletions();
+      renderCourseList(); // 패널 진행률 갱신
+    }
+
+    // ── 데모/테스트용 콘솔 헬퍼 (위치 없이 흐름 확인) ──
+    // devCheckin("spot-id")        : 한 곳 체크인
+    // devCheckinCourse("course-id"): 코스 전체 체크인 → 완주 뱃지 토스트
+    // resetCheckins()              : 체크인·뱃지 초기화
+    window.devCheckin = function (spotId) {
+      if (!spotById[spotId]) { console.warn("없는 spotId:", spotId); return; }
+      completeCheckin(spotId);
+    };
+    window.devCheckinCourse = function (courseId) {
+      var c = courseById[courseId];
+      if (!c) { console.warn("없는 courseId:", courseId); return; }
+      var seen = {};
+      for (var i = 0; i < c.spotIds.length; i++) {
+        var id = c.spotIds[i];
+        if (seen[id]) continue;
+        seen[id] = true;
+        setCheckin(id);
+        refreshSpotInfowindow(id);
+      }
+      checkCourseCompletions();
+      console.log("[dev] '" + c.name + "' 전체 체크인 완료");
+    };
+    window.resetCheckins = function () {
+      localStorage.removeItem("checkins");
+      localStorage.removeItem("course_badges");
+      for (var i = 0; i < markerEntries.length; i++) refreshSpotInfowindow(markerEntries[i].spot.id);
+      if (document.getElementById("course-panel").classList.contains("open")) renderCourseList();
+      console.log("[dev] 체크인·뱃지 초기화 완료");
+    };
+
+    // Phase 3 이벤트 연결 (initPhase2에서 호출)
+    function initPhase3Events() {
+      document.getElementById("review-close").addEventListener("click", closeReviewModal);
+      document.getElementById("review-modal").addEventListener("click", function (e) {
+        if (e.target === this) closeReviewModal();
+      });
+      document.getElementById("review-submit").addEventListener("click", submitReview);
+      // 칩 토글 (긍정/건설 공통, 이벤트 위임)
+      function chipHandler(e) {
+        var chip = e.target.closest(".review-chip");
+        if (!chip) return;
+        var lab = chip.getAttribute("data-label");
+        reviewSelected[lab] = !reviewSelected[lab];
+        chip.classList.toggle("on", !!reviewSelected[lab]);
+        updateReviewSubmitState();
+      }
+      document.getElementById("review-pos").addEventListener("click", chipHandler);
+      document.getElementById("review-con").addEventListener("click", chipHandler);
+    }
+
+    function loadKakaoMap() {
+      if (location.protocol === "file:") {
+        showHelp(
+          "<strong>서버로 열어주세요</strong><br><br>" +
+          "<code>서버실행.bat</code> 실행 후<br>" +
+          "<code>http://localhost:5500/index.html</code>"
+        );
+        return;
+      }
+
+      var script = document.createElement("script");
+      script.src =
+          "https://dapi.kakao.com/v2/maps/sdk.js?appkey=" +
+          encodeURIComponent(KAKAO_JS_KEY) +
+          "&autoload=false";
+
+      script.onload = function () {
+            if (typeof kakao === "undefined") {
+              showHelp("kakao 객체를 찾을 수 없습니다.");
+              return;
+            }
+            kakao.maps.load(function () {
+              try {
+                initMap();
+                helpEl.style.display = "none";
+              } catch (e) {
+                showHelp("<strong>지도 생성 오류</strong><br>" + e.message);
+              }
+            });
+          };
+
+      script.onerror = function () {
+        showHelp(
+          "<strong>카카오맵 스크립트 로드 실패 (403/401)</strong><br><br>" +
+          "<strong>1. JavaScript 키 확인</strong><br>" +
+          "지금 파일에 들어 있는 키:<br>" +
+          "<code>" + KAKAO_JS_KEY + "</code><br>" +
+          "콘솔 → 플랫폼 키 → JavaScript 키 옆 <strong>복사</strong> 버튼으로 다시 붙여넣기<br><br>" +
+          "<strong>2. SDK 도메인</strong><br>" +
+          "JavaScript 키 상세 → SDK 도메인에 등록:<br>" +
+          "<code>http://localhost:5500</code><br>" +
+          "저장 후 Ctrl+F5<br><br>" +
+          "<strong>3. 주소창</strong><br>" +
+          "반드시 <code>http://localhost:5500/index.html</code> (127.0.0.1 아님)"
+        );
+      };
+
+      document.head.appendChild(script);
+    }
+
+    loadKakaoMap();
+  </script>
+
+  <!-- ===== PWA: 서비스워커 등록 (HTTPS·localhost에서만 동작) ===== -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("sw.js").catch(function (err) {
+          console.warn("서비스워커 등록 실패:", err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>

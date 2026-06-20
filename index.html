@@ -620,6 +620,62 @@
     .mm-leg { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-2); font-weight: 500; }
     .mm-leg i { width: 11px; height: 11px; border-radius: 50%; flex: 0 0 auto; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.04); }
 
+    /* ---- 3단계: 말풍선 = 모던 장소 카드 ---- */
+    .iw-card { position: relative; padding: 13px 34px 13px 15px; min-width: 212px; max-width: 268px; font-size: 13px; line-height: 1.5; color: var(--text); }
+    .iw-head { display: flex; align-items: flex-start; gap: 8px; }
+    .iw-cat-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; flex: 0 0 auto; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05); }
+    .iw-name { font-size: 16px; font-weight: 800; color: var(--text); line-height: 1.25; }
+    .iw-cat { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+    .iw-walk { color: #e65100; font-size: 12px; font-weight: 600; margin-top: 7px; }
+    .iw-summary { color: var(--text-2); margin-top: 7px; }
+    .iw-meta { color: var(--text-3); font-size: 12px; margin-top: 3px; }
+    .iw-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+    .iw-tag {
+      font-size: 11px; font-weight: 600; color: var(--text-2);
+      background: var(--surface); border: 1px solid var(--line);
+      padding: 3px 9px; border-radius: 999px; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .iw-tag:active { background: var(--surface-2); }
+    .iw-action-btn {
+      flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+      padding: 9px 6px; border: 1px solid var(--line); border-radius: 10px;
+      background: #fff; color: var(--text); font-size: 13px; font-weight: 700;
+      text-decoration: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .iw-action-btn:active { background: var(--surface); }
+    .iw-action-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .iw-action-btn.done { background: #e8f5e9; border-color: #c8e6c9; color: #2e7d32; }
+    .iw-actions { display: flex; gap: 6px; margin-top: 11px; }
+    .iw-status { margin-top: 7px; font-size: 12px; color: var(--text-3); }
+    .iw-status .ok { color: #2e7d32; font-weight: 700; }
+
+    /* ---- 4단계: 첫 방문 인트로 ---- */
+    #intro {
+      position: fixed; inset: 0; z-index: 60; display: none;
+      align-items: center; justify-content: center;
+      background: rgba(16, 24, 40, 0.5); padding: 22px;
+    }
+    #intro.open { display: flex; }
+    .intro-card {
+      width: 100%; max-width: 360px; background: #fff;
+      border-radius: 20px; padding: 26px 22px 22px;
+      box-shadow: var(--shadow-md); text-align: center;
+    }
+    .intro-emoji { font-size: 40px; line-height: 1; }
+    .intro-title { font-size: 22px; font-weight: 800; color: var(--text); margin: 10px 0 4px; }
+    .intro-sub { font-size: 13px; color: var(--text-3); margin-bottom: 20px; }
+    .intro-list { text-align: left; display: flex; flex-direction: column; gap: 15px; margin-bottom: 22px; }
+    .intro-item { display: flex; gap: 12px; align-items: flex-start; }
+    .intro-item .ic { font-size: 22px; line-height: 1.2; flex: 0 0 auto; }
+    .intro-item .tx b { display: block; font-size: 14px; color: var(--text); font-weight: 700; margin-bottom: 2px; }
+    .intro-item .tx span { font-size: 12.5px; color: var(--text-2); line-height: 1.5; }
+    .intro-start {
+      width: 100%; padding: 14px; border: none; border-radius: 12px;
+      background: var(--accent); color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+    .intro-start:active { background: #1560b5; }
+
     @media (max-width: 600px) {
       /* 상단 필터 패널: 더 얇게 */
       #filter-panel { padding: 6px 0 4px; }
@@ -764,6 +820,10 @@
           <span class="mm-leg"><i style="background:#2196F3"></i>주차장</span>
         </div>
       </div>
+      <div class="mm-divider"></div>
+      <div class="mm-section">
+        <button type="button" class="mm-item" onclick="openIntro();return false;" style="width:100%;border:none;background:none;font:inherit;cursor:pointer;">ℹ️ 앱 소개 다시 보기</button>
+      </div>
     </div>
     <button type="button" id="map-menu-toggle" aria-expanded="false" aria-controls="map-menu-panel">
       <span class="mm-ico" aria-hidden="true">≡</span><span class="mm-txt">메뉴</span>
@@ -824,6 +884,21 @@
       <div class="review-group-label con">💡 아쉬운 점 · 가게에 전하는 제안</div>
       <div class="review-chips" id="review-con"></div>
       <button type="button" class="review-submit" id="review-submit">리뷰 등록</button>
+    </div>
+  </div>
+
+  <!-- ===== 4단계: 첫 방문 인트로 ===== -->
+  <div id="intro" aria-hidden="true">
+    <div class="intro-card" role="dialog" aria-label="앱 소개">
+      <div class="intro-emoji">🗺️</div>
+      <div class="intro-title">대전 한 바퀴</div>
+      <div class="intro-sub">성심당에서 시작하는 동네 한 바퀴</div>
+      <div class="intro-list">
+        <div class="intro-item"><span class="ic">🔍</span><span class="tx"><b>검색·필터로 찾기</b><span>가게 이름이나 태그(데이트·가족 등)로 검색해요.</span></span></div>
+        <div class="intro-item"><span class="ic">🚶</span><span class="tx"><b>코스로 한 바퀴</b><span>‘코스 보기’에서 추천 동선과 SDGs 라벨을 확인해요.</span></span></div>
+        <div class="intro-item"><span class="ic">📍</span><span class="tx"><b>체크인하고 완주</b><span>가게에서 체크인하면 코스 완주 뱃지를 받아요.</span></span></div>
+      </div>
+      <button type="button" class="intro-start" id="intro-start">시작하기</button>
     </div>
   </div>
 
@@ -1617,29 +1692,38 @@
       );
     }
 
-    // 마커 클릭 시 말풍선: 장소 정보 + 길찾기 버튼
+    // 가게 태그 칩 (탭하면 그 태그 필터 적용)
+    function buildSpotTagChips(spot) {
+      if (!spot.tags || !spot.tags.length) return "";
+      var chips = "";
+      for (var i = 0; i < spot.tags.length; i++) {
+        var tg = spot.tags[i];
+        chips += '<span class="iw-tag" onclick="selectTagFromSearch(\'' + tg + '\');return false;">#' + tg + "</span>";
+      }
+      return '<div class="iw-tags">' + chips + "</div>";
+    }
+
+    // 마커 클릭 시 말풍선: 모던 장소 카드
     function buildInfoContent(spot) {
-      var directionsUrl = buildDirectionsUrl(spot);
       var walkInfo = getWalkInfoFromSeongsimdang(spot.lat, spot.lng, spot.id);
-      var walkLine =
-        spot.id === SEONGSIMDANG_ID
-          ? '<span style="color:#E65100;font-weight:600;">📍 ' + walkInfo + "</span><br>"
-          : '<span style="color:#E65100;font-size:12px;">🚶 ' + walkInfo + "</span><br>";
+      var color = CATEGORY_COLORS[spot.category] || "#9aa1aa";
+      var catLabel = SEARCH_CAT_LABEL[spot.category] || "";
+      var walkIcon = spot.id === SEONGSIMDANG_ID ? "📍" : "🚶";
       return (
-        '<div style="position:relative;padding:10px 32px 10px 14px;font-size:13px;line-height:1.6;min-width:200px;">' +
+        '<div class="iw-card">' +
         buildInfowindowCloseButton() +
-        '<strong style="font-size:15px;">' + spot.name + "</strong><br>" +
-        walkLine +
-        '<span style="color:#555;">' + spot.summary + "</span><br>" +
-        '<span style="color:#888;font-size:12px;">영업: ' + spot.hours + "</span><br>" +
-        '<span style="color:#666;font-size:12px;">' + spot.district + "</span><br>" +
-        '<a href="' + directionsUrl + '" target="_blank" rel="noopener noreferrer" ' +
-        'onclick="trackDirectionsClick(\'' + spot.id + '\');" ' +
-        'style="display:inline-block;margin-top:10px;padding:10px 16px;background:#FEE500;' +
-        'color:#3c1e1e;font-size:14px;font-weight:600;text-decoration:none;border-radius:8px;' +
-        'box-shadow:0 1px 3px rgba(0,0,0,0.15);">🧭 길찾기</a>' +
-        buildSpotActionsHtml(spot) +
+        '<div class="iw-head">' +
+        '<span class="iw-cat-dot" style="background:' + color + ';"></span>' +
+        '<div><div class="iw-name">' + spot.name + "</div>" +
+        '<div class="iw-cat">' + catLabel + "</div></div>" +
+        "</div>" +
+        '<div class="iw-walk">' + walkIcon + " " + walkInfo + "</div>" +
+        '<div class="iw-summary">' + spot.summary + "</div>" +
+        '<div class="iw-meta">🕐 영업 ' + spot.hours + "</div>" +
+        '<div class="iw-meta">📍 ' + spot.district + "</div>" +
+        buildSpotTagChips(spot) +
         buildCourseChipsHtml(spot) +
+        buildSpotActionsHtml(spot) +
         "</div>"
       );
     }
@@ -2156,6 +2240,7 @@
       initPhase3Events(); // 체크인/리뷰 이벤트 연결
       initSearch(); // 검색창 (가게 이름 + 태그)
       initMapMenu(); // 하단 통합 메뉴 (주변 정보 + 범례)
+      initIntro(); // 첫 방문 인트로
     }
 
     // ============================================================
@@ -2238,22 +2323,23 @@
     }
 
     // ── Task 1: 위치 기반 체크인 ──
-    // 인포윈도우 액션 영역 (체크인 / 리뷰 버튼 + 상태)
+    // 길찾기 + 체크인 + 리뷰 버튼 줄 + 상태
     function buildSpotActionsHtml(spot) {
       if (spot.category === "parking") return "";
       var checked = isCheckedIn(spot.id);
       var rTotal = reviewTotal(spot.id);
+      var dirBtn =
+        '<a class="iw-action-btn primary" href="' + buildDirectionsUrl(spot) + '" ' +
+        'target="_blank" rel="noopener noreferrer" ' +
+        'onclick="trackDirectionsClick(\'' + spot.id + '\');">🧭 길찾기</a>';
       var checkinBtn = checked
-        ? '<button type="button" class="iw-action-btn done" disabled>✅ 체크인 완료</button>'
+        ? '<button type="button" class="iw-action-btn done" disabled>✅ 완료</button>'
         : '<button type="button" class="iw-action-btn" onclick="doCheckin(\'' + spot.id + '\');return false;">📍 체크인</button>';
       var reviewBtn =
         '<button type="button" class="iw-action-btn" onclick="openReviewModal(\'' + spot.id + '\');return false;">📝 리뷰' +
-        (rTotal ? " (" + rTotal + ")" : "") + "</button>";
-      var status = "";
-      if (checked) {
-        status = '<div class="iw-status"><span class="ok">✓ 방문 인증됨</span> · 100m 이내에서 체크인했어요</div>';
-      }
-      return '<div class="iw-actions">' + checkinBtn + reviewBtn + "</div>" + status;
+        (rTotal ? " " + rTotal : "") + "</button>";
+      var status = checked ? '<div class="iw-status"><span class="ok">✓ 방문 인증됨</span></div>' : "";
+      return '<div class="iw-actions">' + dirBtn + checkinBtn + reviewBtn + "</div>" + status;
     }
 
     // 인포윈도우 내용을 현재 상태로 다시 그림 (체크인/리뷰 후)
@@ -2612,6 +2698,31 @@
       document.addEventListener("click", function (e) {
         if (!e.target.closest("#map-menu")) setOpen(false);
       });
+    }
+
+    // 첫 방문 인트로 (1회만 자동 표시, 메뉴에서 다시 보기 가능)
+    function openIntro() {
+      var el = document.getElementById("intro");
+      if (!el) return;
+      el.classList.add("open");
+      el.setAttribute("aria-hidden", "false");
+    }
+    function closeIntro() {
+      var el = document.getElementById("intro");
+      if (!el) return;
+      el.classList.remove("open");
+      el.setAttribute("aria-hidden", "true");
+    }
+    window.openIntro = openIntro;
+    function initIntro() {
+      var startBtn = document.getElementById("intro-start");
+      if (startBtn) startBtn.addEventListener("click", function () {
+        try { localStorage.setItem("intro_seen", "1"); } catch (e) {}
+        closeIntro();
+      });
+      var seen = false;
+      try { seen = localStorage.getItem("intro_seen") === "1"; } catch (e) {}
+      if (!seen) openIntro();
     }
 
     function loadKakaoMap() {

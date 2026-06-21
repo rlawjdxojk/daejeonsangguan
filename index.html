@@ -855,12 +855,12 @@
       <div class="mm-section">
         <div class="mm-label">핀 색 안내</div>
         <div class="mm-legend">
-          <span class="mm-leg"><i style="background:#FF9800"></i>식당</span>
-          <span class="mm-leg"><i style="background:#795548"></i>카페</span>
-          <span class="mm-leg"><i style="background:#4CAF50"></i>볼거리</span>
-          <span class="mm-leg"><i style="background:#9C27B0"></i>문화공연</span>
-          <span class="mm-leg"><i style="background:#E91E63"></i>쇼핑</span>
-          <span class="mm-leg"><i style="background:#2196F3"></i>주차장</span>
+          <span class="mm-leg"><i style="background:#FF9800"></i>🍚 식당</span>
+          <span class="mm-leg"><i style="background:#795548"></i>☕ 카페</span>
+          <span class="mm-leg"><i style="background:#4CAF50"></i>🏛 볼거리</span>
+          <span class="mm-leg"><i style="background:#9C27B0"></i>🎭 문화공연</span>
+          <span class="mm-leg"><i style="background:#E91E63"></i>🛍 쇼핑</span>
+          <span class="mm-leg"><i style="background:#2196F3"></i>🅿️ 주차장</span>
         </div>
       </div>
       <div class="mm-divider"></div>
@@ -1067,7 +1067,7 @@
         lat: 36.3279519,
         lng: 127.4245703,
         summary: "은행동의 분위기 있는 카페. 디저트와 핸드드립이 강점.",
-        hours: "매장별 상이 (방문 전 확인)",
+        hours: "11:00~24:00 (L.O 23:30)",
         district: "중구"
       },
 
@@ -1093,7 +1093,7 @@
         lat: 36.323552,
         lng: 127.4252106,
         summary: "원도심 정찬 중식당. 동파육·해물누룽지탕 등 시그니처 4~5만원대, 면류 단품 1만원대.",
-        hours: "방문 전 확인 권장",
+        hours: "11:30~21:00 (일 휴무) · 브레이크 15:00~17:30 · L.O 14:00/20:00",
         district: "중구"
       },
 
@@ -1145,7 +1145,7 @@
         lat: 36.3269715,
         lng: 127.4276948,
         summary: "원도심의 작은 책방·카페. 천천히 책 읽기 좋은 공간.",
-        hours: "매장별 상이 (방문 전 확인)",
+        hours: "평일 12:00~22:00 · 토·일 13:00~21:00",
         district: "중구"
       },
 
@@ -1266,11 +1266,11 @@
         tagline: "어울림길 따라 도는 성심당 한 바퀴",
         spotIds: [
           "seongsimdang-main",
-          "euneungjeongi-street",
-          "jung-gu-history-hall",
+          "city-traveler-bookstore",
           "daeheung-cathedral",
           "mural-alley",
-          "city-traveler-bookstore",
+          "jung-gu-history-hall",
+          "euneungjeongi-street",
           "seongsimdang-main"
         ],
         distance: "약 1.9km",
@@ -1307,8 +1307,8 @@
           "seongsimdang-main",
           "daechu-kalguksu",
           "cafe-learning",
-          "doorable",
-          "gwangcheon-sikdang"
+          "gwangcheon-sikdang",
+          "doorable"
         ],
         distance: "약 1.5km",
         time: "6~8시간 (저녁 둘 중 선택)",
@@ -1324,10 +1324,10 @@
         emoji: "🎨",
         tagline: "옛 동네 골목, 천천히 추억 줍기",
         spotIds: [
+          "jung-gu-history-hall",
           "mural-alley",
           "doorable",
-          "city-traveler-bookstore",
-          "jung-gu-history-hall"
+          "city-traveler-bookstore"
         ],
         distance: "약 1.5km",
         time: "2~3시간",
@@ -1343,8 +1343,8 @@
         tagline: "성심당 줄 30분, 그 시간을 다르게",
         spotIds: [
           "seongsimdang-main",
-          "asin-theater",
           "daeheung-cathedral",
+          "asin-theater",
           "seongsimdang-main"
         ],
         distance: "약 0.8km",
@@ -1362,8 +1362,8 @@
         spotIds: [
           "kumdori-family-house",
           "paiks-coffee-eunhaeng",
-          "jung-gu-history-hall",
-          "sonamu-jib"
+          "sonamu-jib",
+          "jung-gu-history-hall"
         ],
         distance: "약 1.4km",
         time: "4~5시간",
@@ -1380,8 +1380,8 @@
         spotIds: [
           "sonamu-jib",
           "city-traveler-bookstore",
-          "lock-house",
-          "euneungjeongi-street"
+          "euneungjeongi-street",
+          "lock-house"
         ],
         distance: "약 1.3km",
         time: "3~4시간",
@@ -1397,7 +1397,6 @@
         tagline: "도심 떠나 30분, 대전의 초록",
         spotIds: [
           "seongsimdang-main",
-          "sajeong-park",
           "taepyeong-market",
           "hanbat-arboretum"
         ],
@@ -1519,6 +1518,11 @@
       sight: "#4CAF50",    // 초록
       culture: "#9C27B0",  // 보라
       shop: "#E91E63"      // 분홍
+    };
+
+    // 카테고리 아이콘 (마커·범례에 표시 — 필터 버튼과 동일)
+    var CATEGORY_ICON = {
+      food: "🍚", cafe: "☕", sight: "🏛", culture: "🎭", shop: "🛍"
     };
 
     // 같은 카테고리는 마커 이미지를 한 번만 만들고 재사용 (성능·일관성)
@@ -1699,16 +1703,18 @@
       }
 
       var color = CATEGORY_COLORS[category] || "#757575";
+      var icon = CATEGORY_ICON[category] || "";
       var svg =
-        '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">' +
-        '<path fill="' + color + '" stroke="#ffffff" stroke-width="1.5" d="M14 0C7.4 0 2 5.4 2 12c0 8.5 12 26 12 26s12-17.5 12-26C26 5.4 20.6 0 14 0z"/>' +
-        '<circle fill="#ffffff" cx="14" cy="12" r="5"/></svg>';
+        '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 30 42">' +
+        '<path fill="' + color + '" stroke="#ffffff" stroke-width="1.5" d="M15 0C7.8 0 2 5.8 2 13c0 9 13 29 13 29s13-20 13-29C28 5.8 22.2 0 15 0z"/>' +
+        '<circle fill="#ffffff" cx="15" cy="13" r="8.5"/>' +
+        '<text x="15" y="13" text-anchor="middle" dominant-baseline="central" font-size="13">' + icon + '</text></svg>';
       var imageUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
 
       var image = new kakao.maps.MarkerImage(
         imageUrl,
-        new kakao.maps.Size(28, 40),
-        { offset: new kakao.maps.Point(14, 40) }
+        new kakao.maps.Size(30, 42),
+        { offset: new kakao.maps.Point(15, 42) }
       );
       markerImageCache[category] = image;
       return image;
@@ -1720,16 +1726,16 @@
         return parkingMarkerImage;
       }
       var svg =
-        '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">' +
-        '<path fill="#2196F3" stroke="#ffffff" stroke-width="1.5" d="M14 0C7.4 0 2 5.4 2 12c0 8.5 12 26 12 26s12-17.5 12-26C26 5.4 20.6 0 14 0z"/>' +
-        '<circle fill="#ffffff" cx="14" cy="12" r="7"/>' +
-        '<text x="14" y="16" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#2196F3">P</text>' +
+        '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 30 42">' +
+        '<path fill="#2196F3" stroke="#ffffff" stroke-width="1.5" d="M15 0C7.8 0 2 5.8 2 13c0 9 13 29 13 29s13-20 13-29C28 5.8 22.2 0 15 0z"/>' +
+        '<circle fill="#ffffff" cx="15" cy="13" r="8.5"/>' +
+        '<text x="15" y="17.5" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#2196F3">P</text>' +
         "</svg>";
       var imageUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
       parkingMarkerImage = new kakao.maps.MarkerImage(
         imageUrl,
-        new kakao.maps.Size(28, 40),
-        { offset: new kakao.maps.Point(14, 40) }
+        new kakao.maps.Size(30, 42),
+        { offset: new kakao.maps.Point(15, 42) }
       );
       return parkingMarkerImage;
     }

@@ -1903,7 +1903,8 @@
         });
 
         var infowindow = new kakao.maps.InfoWindow({
-          content: buildParkingInfoContent(parking)
+          content: buildParkingInfoContent(parking),
+          zIndex: 100
         });
 
         var entry = { parking: parking, marker: marker, infowindow: infowindow };
@@ -1954,7 +1955,8 @@
         });
 
         var infowindow = new kakao.maps.InfoWindow({
-          content: buildInfoContent(spot)
+          content: buildInfoContent(spot),
+          zIndex: 100
         });
 
         var entry = { spot: spot, marker: marker, infowindow: infowindow };
